@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block titulo %}Obrigações · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Escritório</div>
+        <h1>Obrigações do mês</h1>
+        <p class="descricao">Checklist das obrigações recorrentes do DP na competência —
+            marque conforme for cumprindo. Vencidas e não marcadas ficam em vermelho.</p>
+    </div>
+    <div class="nav-competencia">
+        <a class="btn btn-fantasma" href="{{ url_for('obrigacoes', competencia=anterior) }}">← {{ anterior }}</a>
+        <span class="competencia-atual mono">{{ competencia }}</span>
+        <a class="btn btn-fantasma" href="{{ url_for('obrigacoes', competencia=proxima) }}">{{ proxima }} →</a>
+    </div>
+</div>
+
+<div class="painel">
+    <div class="lista-solicitacoes">
+        {% for item in itens %}
+        <div class="item-obrigacao {{ 'feita' if item.feito }} {{ 'atrasada' if item.atrasada }}">
+            <form method="post" action="{{ url_for('marcar_obrigacao_web') }}">
+                <input type="hidden" name="competencia" value="{{ competencia }}">
+                <input type="hidden" name="obrigacao" value="{{ item.nome }}">
+                <input type="hidden" name="feito" value="{{ '0' if item.feito else '1' }}">
+                <button type="submit" class="check-obrigacao" title="{{ 'Desmarcar' if item.feito else 'Marcar como feita' }}">
+                    {{ '✓' if item.feito else '' }}
+                </button>
+            </form>
+            <div class="corpo-obrigacao">
+                <div class="nome-obrigacao">{{ item.nome }}</div>
+                <div class="obs-obrigacao">{{ item.obs }}
+                    {% if item.feito and item.marcado_por %} — <em>feita por {{ item.marcado_por }}</em>{% endif %}
+                </div>
+            </div>
+            <div class="venc-obrigacao mono">
+                dia {{ item.dia }}
+                {% if item.atrasada %}<span class="tag-atrasada">vencida</span>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

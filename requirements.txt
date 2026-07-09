@@ -1,0 +1,33 @@
+# Interface gráfica
+PyQt5>=5.15
+
+# Versão web (testes)
+Flask>=3.0
+
+# Extração de dados (Bloco 2 - admissões, folha com variáveis)
+pdfplumber>=0.10
+pytesseract>=0.3.10
+Pillow>=10.0
+
+# Automação do Domínio (RPA)
+pyautogui>=0.9.54
+keyboard>=0.13.5
+
+# Datas (cálculo de aviso prévio, férias, prazos)
+python-dateutil>=2.8
+
+# Integração futura com Onvio / APIs
+requests>=2.31
+
+# Agendamento de rotinas (feriados, monitor CCT, alertas) - usar quando ligar os schedulers
+APScheduler>=3.10
+
+# Servidor web de produção (scripts/rodar_producao.py)
+waitress>=3.0
+
+# Notificações push do PWA (opcional — só se for usar; gere as chaves com
+# scripts/gerar_chaves_push.py). Sem ele instalado, o push fica desligado.
+pywebpush>=2.0
+
+# Testes (pytest tests/)
+pytest>=8.0

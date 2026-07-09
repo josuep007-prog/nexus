@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}{{ "Corrigir admissão" if edicao_id else "Nova admissão" }} · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Bloco 2 · Solicitação com anexo</div>
+        <h1>{{ "Corrigir admissão reprovada" if edicao_id else "Lançamento de admissão" }}</h1>
+        <p class="descricao">{% if edicao_id %}Ajuste os dados e/ou os documentos e reenvie para validação. Os documentos já enviados continuam vinculados — remova ou adicione conforme necessário.{% else %}Envie todos os documentos do funcionário de uma vez (RG, CTPS, comprovante de residência, dados bancários...). O sistema já roda a extração automática dos dados e confere os campos obrigatórios da CLT antes de mandar para a fila de validação.{% endif %}</p>
+    </div>
+</div>
+
+{% if edicao_id and anexos %}
+<div class="form-card" style="max-width: 680px; margin-bottom: 16px;">
+    <label style="font-size:12.5px;font-weight:600;color:var(--heading);margin-bottom:8px;display:block;">Documentos já enviados</label>
+    {% for anexo in anexos %}
+    <div class="anexo-item">
+        <span>{{ anexo.caminho_arquivo.replace('\\', '/').split('/')[-1] }}</span>
+        <form method="post" action="{{ url_for('excluir_anexo', anexo_id=anexo.id) }}" style="margin:0;"
+              onsubmit="return confirm('Remover este documento?');">
+            <button type="submit" class="btn btn-fantasma" style="padding:5px 11px;font-size:12px;">Remover</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<form class="form-card" method="post" enctype="multipart/form-data" style="max-width: 680px;">
+    {% if usuario_logado and usuario_logado.eh_cliente %}
+    {{ m.escolha_empresa(travada=(edicao_id is defined and edicao_id)) }}
+    {% elif not edicao_id %}
+    <div class="campo">
+        <label for="cliente_nome">Cliente</label>
+        <input type="text" id="cliente_nome" name="cliente_nome" value="{{ form.get('cliente_nome', '') }}" placeholder="Ex: Comercial Silva Ltda" required>
+    </div>
+
+    <div class="campo">
+        <label for="cliente_cnpj">CNPJ do cliente <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+        <input type="text" id="cliente_cnpj" name="cliente_cnpj" value="{{ form.get('cliente_cnpj', '') }}" placeholder="00.000.000/0001-00">
+    </div>
+    {% endif %}
+
+    <div class="campo">
+        <label for="funcionario_nome">Funcionário</label>
+        <input type="text" id="funcionario_nome" name="funcionario_nome" value="{{ form.get('funcionario_nome', '') }}" placeholder="Nome completo do funcionário" {{ 'readonly' if edicao_id else 'required' }}>
+    </div>
+
+    <div class="campo">
+        <label for="cargo">Cargo</label>
+        <input type="text" id="cargo" name="cargo" value="{{ form.get('cargo', '') }}" placeholder="Ex: Analista de vendas" required>
+    </div>
+
+    <div class="campo">
+        <label for="departamento">Departamento / Setor</label>
+        <input type="text" id="departamento" name="departamento" value="{{ form.get('departamento', '') }}" placeholder="Ex: Comercial" required>
+    </div>
+
+    <div class="campo">
+        <label for="data_admissao">Data de admissão</label>
+        <input type="date" id="data_admissao" name="data_admissao" value="{{ form.get('data_admissao', '') }}" required>
+    </div>
+
+    <div class="campo">
+        <label for="salario">Salário (R$)</label>
+        <input type="number" id="salario" name="salario" value="{{ form.get('salario', '') }}" step="0.01" min="0" placeholder="Ex: 1800.00" required>
+    </div>
+
+    <div class="campo">
+        <label for="horario_trabalho">Horário de trabalho</label>
+        <input type="text" id="horario_trabalho" name="horario_trabalho" value="{{ form.get('horario_trabalho', '') }}" placeholder="Ex: 08h00 às 17h48, seg. a sex., 1h de intervalo" required>
+    </div>
+
+    <div class="campo">
+        <label>{{ "Adicionar documentos" if edicao_id else "Documentos da admissão" }} {% if edicao_id %}<span style="font-weight:400;color:var(--text-muted)">(opcional)</span>{% endif %}</label>
+        <div class="dropzone">
+            <input type="file" name="arquivos" accept=".pdf,.png,.jpg,.jpeg" multiple>
+            <div class="icone-arquivo">[ ↑ ]</div>
+            <div class="instrucao">Clique ou arraste os arquivos aqui — pode selecionar vários de uma vez</div>
+            <div class="nome-arquivo"></div>
+        </div>
+        <div class="ajuda">Formatos aceitos: PDF, PNG ou JPG. Ex: RG, CTPS, comprovante de residência, dados bancários.</div>
+    </div>
+
+    <div class="campo">
+        <label for="observacoes">Observações <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+        <textarea id="observacoes" name="observacoes" placeholder="Qualquer informação adicional relevante para o analista...">{{ form.get('observacoes', '') }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primario">{{ "Reenviar para validação" if edicao_id else "Enviar documentos" }}</button>
+</form>
+{% endblock %}

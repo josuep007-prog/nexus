@@ -1,0 +1,31 @@
+{
+    "name": "Automação DP",
+    "short_name": "Automação DP",
+    "description": "Sistema de automação do Departamento Pessoal — solicitações, validações e alertas.",
+    "start_url": "/solicitacoes",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#F5F7F7",
+    "theme_color": "#16324A",
+    "icons": [
+        {
+            "src": "/static/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/static/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/static/icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

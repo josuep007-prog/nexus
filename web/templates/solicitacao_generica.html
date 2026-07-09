@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}{{ schema.titulo }} · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">{{ "Bloco 1 · sem anexo" if bloco == "bloco1" else "Bloco 2 · com anexo" }}</div>
+        <h1>{{ ("Corrigir: " ~ schema.titulo) if edicao_id else schema.titulo }}</h1>
+        <p class="descricao">{% if edicao_id %}Ajuste os dados{% if bloco == "bloco2" %} e/ou os documentos{% endif %} e reenvie para validação.{% else %}Preencha os dados abaixo. As regras da CLT relevantes para esse tipo são conferidas automaticamente antes de entrar na fila de validação.{% endif %}</p>
+    </div>
+</div>
+
+{% if edicao_id and bloco == "bloco2" and anexos %}
+<div class="form-card" style="max-width: 680px; margin-bottom: 16px;">
+    <label style="font-size:12.5px;font-weight:600;color:var(--heading);margin-bottom:8px;display:block;">Documentos já enviados</label>
+    {% for anexo in anexos %}
+    <div class="anexo-item">
+        <span>{{ anexo.caminho_arquivo.replace('\\', '/').split('/')[-1] }}</span>
+        <form method="post" action="{{ url_for('excluir_anexo', anexo_id=anexo.id) }}" style="margin:0;"
+              onsubmit="return confirm('Remover este documento?');">
+            <button type="submit" class="btn btn-fantasma" style="padding:5px 11px;font-size:12px;">Remover</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<form class="form-card" method="post" enctype="multipart/form-data" style="max-width: 680px;">
+    {% if usuario_logado and usuario_logado.eh_cliente %}
+    {{ m.escolha_empresa(travada=(edicao_id is defined and edicao_id)) }}
+    {% else %}
+    <div class="campo">
+        <label for="cliente_nome">Cliente</label>
+        <input type="text" id="cliente_nome" name="cliente_nome" value="{{ form.get('cliente_nome', '') }}" placeholder="Ex: Comercial Silva Ltda" required>
+    </div>
+
+    <div class="campo">
+        <label for="cliente_cnpj">CNPJ do cliente <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+        <input type="text" id="cliente_cnpj" name="cliente_cnpj" value="{{ form.get('cliente_cnpj', '') }}" placeholder="00.000.000/0001-00">
+    </div>
+    {% endif %}
+
+    <div class="campo">
+        <label for="funcionario_nome">Funcionário <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+        <input type="text" id="funcionario_nome" name="funcionario_nome" value="{{ form.get('funcionario_nome', '') }}" placeholder="Nome completo do funcionário">
+    </div>
+
+    {% for campo in schema.campos %}
+    <div class="campo">
+        <label for="{{ campo.nome }}">{{ campo.rotulo }}{% if not campo.obrigatorio %} <span style="font-weight:400;color:var(--text-muted)">(opcional)</span>{% endif %}</label>
+
+        {% if campo.tipo == "textarea" %}
+        <textarea id="{{ campo.nome }}" name="{{ campo.nome }}" placeholder="{{ campo.get('placeholder', '') }}" {{ 'required' if campo.obrigatorio }}>{{ form.get(campo.nome, '') }}</textarea>
+
+        {% elif campo.tipo == "select" %}
+        <select id="{{ campo.nome }}" name="{{ campo.nome }}" {{ 'required' if campo.obrigatorio }}>
+            <option value="">Selecione...</option>
+            {% for opcao in campo.opcoes %}
+            <option value="{{ opcao }}" {{ 'selected' if form.get(campo.nome) == opcao }}>{{ opcao.replace('_', ' ') if opcao != opcao.lower() else opcao.replace('_', ' ')|capitalize }}</option>
+            {% endfor %}
+        </select>
+
+        {% else %}
+        <input type="{{ campo.tipo }}" id="{{ campo.nome }}" name="{{ campo.nome }}" value="{{ form.get(campo.nome, '') }}"
+               placeholder="{{ campo.get('placeholder', '') }}" {{ 'required' if campo.obrigatorio }}>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if bloco == "bloco2" %}
+    <div class="campo">
+        <label>Documentos <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+        <div class="dropzone">
+            <input type="file" name="arquivos" accept=".pdf,.png,.jpg,.jpeg" multiple>
+            <div class="icone-arquivo">[ ↑ ]</div>
+            <div class="instrucao">Clique ou arraste os arquivos aqui, se houver algum documento</div>
+            <div class="nome-arquivo"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primario">{{ "Reenviar para validação" if edicao_id else "Enviar solicitação" }}</button>
+</form>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}Relatórios · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Escritório</div>
+        <h1>Relatórios</h1>
+        <p class="descricao">Solicitações por período, tipo e cliente — com produtividade por analista.
+            Exporte em CSV (abre no Excel) ou imprima em PDF pelo navegador.</p>
+    </div>
+</div>
+
+<div class="painel" style="margin-bottom: 20px;">
+    <div class="painel-cabecalho">
+        <form method="get" class="filtros">
+            <label>De <input type="date" name="data_inicio" value="{{ data_inicio }}"></label>
+            <label>até <input type="date" name="data_fim" value="{{ data_fim }}"></label>
+            <select name="tipo">
+                <option value="">Todos os tipos</option>
+                {% for valor, rotulo in tipos_disponiveis %}
+                <option value="{{ valor }}" {{ 'selected' if valor == tipo }}>{{ rotulo }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primario" style="padding:8px 14px;">Filtrar</button>
+            <a class="btn btn-fantasma" style="padding:8px 14px;"
+               href="{{ url_for('relatorios', data_inicio=data_inicio, data_fim=data_fim, tipo=tipo or none, formato='csv') }}">⬇ CSV</a>
+            <button type="button" class="btn btn-fantasma" style="padding:8px 14px;" onclick="window.print()">Imprimir / PDF</button>
+        </form>
+    </div>
+</div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="valor mono">{{ lista|length }}</div>
+        <div class="rotulo">Solicitações no período</div>
+    </div>
+    <div class="stat-card destaque">
+        <div class="valor mono">{{ por_status.get('aguardando', 0) + por_status.get('recebidas', 0) }}</div>
+        <div class="rotulo">Aguardando ação</div>
+    </div>
+    <div class="stat-card">
+        <div class="valor mono">{{ por_status.get('concluidas', 0) }}</div>
+        <div class="rotulo">Concluídas</div>
+    </div>
+    <div class="stat-card">
+        <div class="valor mono">{{ tempo_medio_horas if tempo_medio_horas is not none else '—' }}</div>
+        <div class="rotulo">Tempo médio de conclusão (horas)</div>
+    </div>
+</div>
+
+<div class="grade-relatorios">
+    <div class="painel">
+        <div class="painel-cabecalho"><h3>Por tipo</h3></div>
+        <div class="tabela-simples">
+            {% for tipo_k, qtd in por_tipo %}
+            <div class="linha-tabela"><span>{{ rotulo_tipo(tipo_k) }}</span><strong class="mono">{{ qtd }}</strong></div>
+            {% else %}
+            <div class="vazio">Nada no período.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="painel">
+        <div class="painel-cabecalho"><h3>Por cliente</h3></div>
+        <div class="tabela-simples">
+            {% for nome, qtd in por_cliente %}
+            <div class="linha-tabela"><span>{{ nome }}</span><strong class="mono">{{ qtd }}</strong></div>
+            {% else %}
+            <div class="vazio">Nada no período.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="painel">
+        <div class="painel-cabecalho"><h3>Produtividade por analista</h3></div>
+        <div class="tabela-simples">
+            <div class="linha-tabela cabecalho-tabela">
+                <span>Analista</span><strong>Etapas · Decisões · Entregas</strong>
+            </div>
+            {% for quem, info in por_analista %}
+            <div class="linha-tabela">
+                <span>{{ quem }}</span>
+                <strong class="mono">{{ info.total }} · {{ info.aprovacoes }} · {{ info.entregas }}</strong>
+            </div>
+            {% else %}
+            <div class="vazio">Nenhuma etapa registrada no período.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="painel" style="margin-top: 20px;">
+    <div class="painel-cabecalho"><h3>Solicitações do período ({{ lista|length }})</h3></div>
+    <div class="lista-solicitacoes">
+        {% for sol in lista %}
+        <a class="item-solicitacao" href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">
+            <div class="id mono">#{{ sol.id }}</div>
+            <div class="tipo">{{ rotulo_tipo(sol.tipo) }}</div>
+            <div class="cliente" data-label="Cliente">{{ sol._row.cliente_nome or "—" }}</div>
+            <div>{{ m.carimbo_status(sol.status) }}</div>
+        </a>
+        {% else %}
+        <div class="vazio">Nenhuma solicitação no período filtrado.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

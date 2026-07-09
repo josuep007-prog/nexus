@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block titulo %}Nova solicitação · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Catálogo</div>
+        <h1>Nova solicitação</h1>
+        <p class="descricao">Busque ou escolha o tipo de solicitação. Cada uma tem seu próprio formulário e suas regras de validação.</p>
+    </div>
+</div>
+
+<div class="campo" style="max-width: 420px; margin-bottom: 18px;">
+    <input type="text" id="busca-tipo" placeholder="Buscar solicitação... (ex: férias, CAT, licença)" autocomplete="off"
+           style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid var(--border); font-family:'Inter',sans-serif; font-size:14px; background:white;">
+</div>
+
+<div id="grupos-catalogo">
+    {% for categoria, itens in grupos %}
+    <div class="grupo-catalogo" data-grupo>
+        <div class="grupo-titulo">{{ categoria }}</div>
+        <div class="lista-catalogo-minimal">
+            {% for bloco, tipo, schema in itens %}
+            <a href="{{ url_for('nova_solicitacao_generica', bloco=bloco, tipo=tipo) }}"
+               class="item-catalogo-minimal" data-busca="{{ schema.titulo|lower }}">
+                {{ schema.titulo }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="vazio" id="vazio-busca" style="display:none;">
+    <div class="titulo-vazio">Nenhum tipo encontrado</div>
+    Tente buscar por outro termo.
+</div>
+
+<script>
+    const campoBusca = document.getElementById("busca-tipo");
+    const grupos = document.querySelectorAll("[data-grupo]");
+    const vazio = document.getElementById("vazio-busca");
+
+    function normalizar(texto) {
+        return texto
+            .normalize("NFD")
+            .replace(/[̀-ͯ]/g, "") // remove acentos: "férias" -> "ferias"
+            .toLowerCase();
+    }
+
+    campoBusca.addEventListener("input", () => {
+        const palavras = normalizar(campoBusca.value.trim()).split(/\s+/).filter(Boolean);
+        let algumVisivel = false;
+        grupos.forEach((grupo) => {
+            let algumNoGrupo = false;
+            grupo.querySelectorAll(".item-catalogo-minimal").forEach((item) => {
+                const alvo = normalizar(item.dataset.busca);
+                const combina = palavras.every((palavra) => alvo.includes(palavra));
+                item.style.display = combina ? "" : "none";
+                if (combina) algumNoGrupo = true;
+            });
+            grupo.style.display = algumNoGrupo ? "" : "none";
+            if (algumNoGrupo) algumVisivel = true;
+        });
+        vazio.style.display = algumVisivel ? "none" : "block";
+    });
+
+    campoBusca.focus();
+</script>
+{% endblock %}

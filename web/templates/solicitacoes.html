@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}Solicitações · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Painel</div>
+        <h1>Solicitações</h1>
+        <p class="descricao">Todas as demandas recebidas — férias, rescisões, admissões, atestados e mais — com o status atual de cada uma.</p>
+    </div>
+    <a href="{{ url_for('catalogo_solicitacoes') }}" class="btn btn-primario">+ Nova solicitação</a>
+</div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="valor mono">{{ stats.total }}</div>
+        <div class="rotulo">Total de solicitações</div>
+    </div>
+    <div class="stat-card destaque">
+        <div class="valor mono">{{ stats.pendentes }}</div>
+        <div class="rotulo">Aguardando validação</div>
+    </div>
+    <div class="stat-card">
+        <div class="valor mono">{{ stats.concluidas }}</div>
+        <div class="rotulo">Concluídas</div>
+    </div>
+    <div class="stat-card">
+        <div class="valor mono">{{ stats.alertas }}</div>
+        <div class="rotulo">Alertas pendentes</div>
+    </div>
+</div>
+
+{% if solicitacoes %}
+<div class="grafico-wrap">
+    <div class="grafico-card">
+        <svg id="donut" viewBox="0 0 180 180" width="180" height="180" role="img" aria-label="Distribuição das solicitações por situação"></svg>
+        <div class="donut-centro"><span>{{ stats.total }}</span><small>solicitações</small></div>
+    </div>
+    <div class="donut-lado">
+        <div class="donut-dica">Clique numa fatia (ou na legenda) para ver a lista daquela situação.</div>
+        <div class="donut-legenda" id="donut-legenda"></div>
+    </div>
+</div>
+
+<div class="painel" id="lista-drill" style="display:none; margin-top:20px;">
+    <div class="painel-cabecalho">
+        <h3 id="drill-titulo">Solicitações</h3>
+        <button type="button" class="btn btn-fantasma" id="drill-fechar" style="padding:6px 12px; font-size:12px;">Fechar</button>
+    </div>
+    <div class="lista-solicitacoes">
+        {% for sol in solicitacoes %}
+        {% set concluida = sol.status == 'concluida' %}
+        {% set vista = sol.dados.get('visto_pelo_cliente') %}
+        {% set nova_entrega = concluida and not vista and usuario_logado.eh_cliente %}
+        {% set visto_func = concluida and vista and usuario_logado.eh_funcionario %}
+        <a class="item-solicitacao {{ 'nao-vista' if nova_entrega }}" data-bucket="{{ bucket_status(sol.status) }}" href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">
+            <div class="id mono">#{{ sol.id }}</div>
+            <div class="tipo">{{ rotulo_tipo(sol.tipo) }}{% if nova_entrega %} <span class="tag-nova">nova entrega</span>{% elif visto_func %} <span class="tag-vista">visto pelo cliente</span>{% endif %}</div>
+            <div class="cliente" data-label="Cliente">{{ sol._row.cliente_nome or "—" }}</div>
+            <div>{{ m.carimbo_status(sol.status) }}</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<script id="dados-grafico" type="application/json">{{ resumo_grafico | tojson }}</script>
+<script>
+(function () {
+    var dados = JSON.parse(document.getElementById('dados-grafico').textContent);
+    var svg = document.getElementById('donut');
+    var legenda = document.getElementById('donut-legenda');
+    var drill = document.getElementById('lista-drill');
+    var drillTitulo = document.getElementById('drill-titulo');
+    if (!svg) return;
+    var NS = 'http://www.w3.org/2000/svg';
+    var cx = 90, cy = 90, R = 64, SW = 26, C = 2 * Math.PI * R;
+    var total = dados.reduce(function (a, d) { return a + d.count; }, 0) || 1;
+
+    var track = document.createElementNS(NS, 'circle');
+    track.setAttribute('cx', cx); track.setAttribute('cy', cy); track.setAttribute('r', R);
+    track.setAttribute('fill', 'none'); track.setAttribute('stroke-width', SW);
+    track.style.stroke = 'var(--surface-inset)';
+    svg.appendChild(track);
+
+    function mostrar(d) {
+        drillTitulo.textContent = d.label + ' (' + d.count + ')';
+        drill.style.display = 'block';
+        drill.querySelectorAll('.item-solicitacao').forEach(function (r) {
+            r.style.display = (r.dataset.bucket === d.key) ? '' : 'none';
+        });
+        drill.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    var offset = 0;
+    dados.forEach(function (d) {
+        var len = (d.count / total) * C;
+        var arc = document.createElementNS(NS, 'circle');
+        arc.setAttribute('cx', cx); arc.setAttribute('cy', cy); arc.setAttribute('r', R);
+        arc.setAttribute('fill', 'none'); arc.setAttribute('stroke-width', SW);
+        arc.style.stroke = d.cor;
+        var vis = Math.max(len - 2, 0); // pequeno espaço entre fatias
+        arc.setAttribute('stroke-dasharray', vis + ' ' + (C - vis));
+        arc.setAttribute('stroke-dashoffset', -offset);
+        arc.setAttribute('transform', 'rotate(-90 ' + cx + ' ' + cy + ')');
+        arc.style.cursor = 'pointer';
+        arc.addEventListener('click', function () { mostrar(d); });
+        svg.appendChild(arc);
+        offset += len;
+
+        var li = document.createElement('button');
+        li.type = 'button'; li.className = 'legenda-item';
+        li.innerHTML = '<span class="pt"></span><span class="lbl"></span><strong></strong>';
+        li.querySelector('.pt').style.background = d.cor;
+        li.querySelector('.lbl').textContent = d.label;
+        li.querySelector('strong').textContent = d.count;
+        li.addEventListener('click', function () { mostrar(d); });
+        legenda.appendChild(li);
+    });
+
+    document.getElementById('drill-fechar').addEventListener('click', function () {
+        drill.style.display = 'none';
+    });
+})();
+</script>
+{% else %}
+<div class="painel">
+    <div class="vazio">
+        <div class="titulo-vazio">Nenhuma solicitação encontrada</div>
+        Cadastre uma nova solicitação para começar.
+    </div>
+</div>
+{% endif %}
+{% endblock %}

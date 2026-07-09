@@ -1,0 +1,38 @@
+{% macro carimbo_status(status) %}
+    {% set mapa = {
+        "recebida": "cinza", "triagem_ia": "azul", "upload_vinculado": "azul", "extracao_ia": "azul",
+        "aguardando_ajuste_cliente": "ambar", "aguardando_validacao_humana": "ambar",
+        "aguardando_aprovacao_1": "ambar", "aguardando_aprovacao_2": "ambar", "aguardando_aprovacao_3": "ambar",
+        "aguardando_aprovacao_distribuicao": "ambar",
+        "aprovada_para_processamento": "verde", "relatorio_gerado": "verde",
+        "processando_dominio": "azul", "preenchendo_sistema": "azul",
+        "processando": "azul", "aguardando_esocial": "azul", "distribuindo": "azul",
+        "concluida": "verde",
+        "na_fila_automacao": "azul", "em_atendimento_manual": "ambar", "aguardando_entrega": "azul",
+        "erro_esocial": "vermelho", "erro": "vermelho", "reprovada": "vermelho",
+    } %}
+    {% set cor = mapa.get(status, "cinza") %}
+    <span class="carimbo carimbo-{{ cor }}">{{ rotulo_status(status) }}</span>
+{% endmacro %}
+
+{# Bloco "Solicitação em nome de" para conta CLIENTE: se a conta tem várias
+   empresas (grupo econômico), vira um seletor; senão, mostra o nome fixo.
+   O servidor valida que o CNPJ escolhido pertence à conta. #}
+{% macro escolha_empresa(travada=False) %}
+    {% set empresas = usuario_logado.empresas() %}
+    {% if empresas|length > 1 and not travada %}
+    <div class="campo">
+        <label for="empresa_cnpj">Solicitação em nome de</label>
+        <select id="empresa_cnpj" name="empresa_cnpj">
+            {% for e in empresas %}
+            <option value="{{ e.cnpj }}">{{ e.nome }} — {{ e.cnpj }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% else %}
+    <div class="campo">
+        <label>Solicitação em nome de</label>
+        <div class="ajuda" style="font-size:13.5px;color:var(--heading);font-weight:600;">{{ usuario_logado.nome_exibicao }}</div>
+    </div>
+    {% endif %}
+{% endmacro %}

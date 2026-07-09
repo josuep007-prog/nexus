@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}Processamento · Automação DP{% endblock %}
+
+{# Card de entrega ao cliente: resumo do que foi feito + documentos gerados.
+   Usado tanto para o atendimento manual quanto para o pós-automação. #}
+{% macro card_entrega(sol, nota) %}
+<div class="card-validacao">
+    <div class="cabecalho-validacao">
+        <div class="titulo-validacao">#{{ sol.id }} — {{ rotulo_tipo(sol.tipo) }} <span style="color:var(--text-muted); font-weight:400;">· {{ sol._row.cliente_nome or "—" }}</span></div>
+        {{ m.carimbo_status(sol.status) }}
+    </div>
+    <div class="meta">
+        Funcionário: {{ sol._row.funcionario_nome or "—" }} ·
+        <a href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">ver detalhes</a>
+    </div>
+    {% if nota %}<div class="caixa-aviso" style="margin-bottom:10px;">{{ nota }}</div>{% endif %}
+    {% if sol.dados.get('erro_automacao') %}
+    <div class="caixa-aviso" style="margin-bottom:10px;">A automação falhou e caiu para manual: {{ sol.dados.get('erro_automacao') }}</div>
+    {% endif %}
+    <form method="post" action="{{ url_for('concluir_manual', solicitacao_id=sol.id) }}" enctype="multipart/form-data">
+        <div class="campo" style="margin-bottom:12px;">
+            <label for="resumo-{{ sol.id }}">O que foi feito (o cliente vai ver)</label>
+            <textarea id="resumo-{{ sol.id }}" name="resumo" placeholder="Ex: Admissão registrada no Domínio e no eSocial. Segue o contrato e o recibo.">{{ sol.dados.get('resumo_entrega', '') }}</textarea>
+        </div>
+        <div class="campo" style="margin-bottom:12px;">
+            <label>Documentos processados (entregues ao cliente) <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+            <div class="dropzone">
+                <input type="file" name="arquivos_resultado" accept=".pdf,.png,.jpg,.jpeg" multiple>
+                <div class="icone-arquivo">[ ↑ ]</div>
+                <div class="instrucao">Clique ou arraste os documentos gerados (contrato, recibo, holerite...)</div>
+                <div class="nome-arquivo"></div>
+            </div>
+        </div>
+        <div class="acoes-validacao">
+            <button type="submit" class="btn btn-sucesso">✓ Concluir e entregar ao cliente</button>
+        </div>
+    </form>
+</div>
+{% endmacro %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Domínio</div>
+        <h1>Processamento</h1>
+        <p class="descricao">O que foi aprovado e está indo pro Domínio: a fila da automação (o PC-host processa sozinho), o que a automação já processou e espera a entrega, e o que ficou para atendimento manual.</p>
+    </div>
+    {# Heartbeat do worker no PC-host (gravado a cada rodada na tabela sistema) #}
+    {% if worker_status == 'online' %}
+    <span class="selo-worker online">● Worker online</span>
+    {% elif worker_status == 'offline' %}
+    <span class="selo-worker offline" title="O worker parou de dar sinal — confira o PC-host">● Worker offline</span>
+    {% else %}
+    <span class="selo-worker nunca" title="O worker nunca rodou neste banco">○ Worker nunca iniciado</span>
+    {% endif %}
+</div>
+
+<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">▶ Fila de automação</h3>
+{% if fila_auto %}
+<div class="painel" style="margin-bottom:26px;">
+    <div class="lista-solicitacoes">
+        {% for sol in fila_auto %}
+        <a class="item-solicitacao" href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">
+            <div class="id mono">#{{ sol.id }}</div>
+            <div class="tipo">{{ rotulo_tipo(sol.tipo) }}</div>
+            <div class="cliente">{{ sol._row.cliente_nome or "—" }}</div>
+            <div>{{ m.carimbo_status(sol.status) }}</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="painel" style="margin-bottom:26px;"><div class="vazio">Nada na fila da automação.</div></div>
+{% endif %}
+
+<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">✓ Processado pela automação — revisar e entregar</h3>
+{% if fila_entrega %}
+<div class="fila-validacao" style="margin-bottom:26px;">
+    {% for sol in fila_entrega %}
+    {{ card_entrega(sol, "A automação já preencheu no Domínio. Revise, anexe o comprovante/documento gerado e entregue ao cliente.") }}
+    {% endfor %}
+</div>
+{% else %}
+<div class="painel" style="margin-bottom:26px;"><div class="vazio">Nada aguardando entrega.</div></div>
+{% endif %}
+
+<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">✋ Em atendimento manual</h3>
+{% if fila_manual %}
+<div class="fila-validacao">
+    {% for sol in fila_manual %}
+    {{ card_entrega(sol, None) }}
+    {% endfor %}
+</div>
+{% else %}
+<div class="painel"><div class="vazio">Nada em atendimento manual.</div></div>
+{% endif %}
+{% endblock %}

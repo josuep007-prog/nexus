@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}{{ "Corrigir atestado" if edicao_id else "Novo atestado" }} · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Bloco 2 · Solicitação com anexo</div>
+        <h1>{{ "Corrigir atestado reprovado" if edicao_id else "Lançamento de atestado" }}</h1>
+        <p class="descricao">{% if edicao_id %}Ajuste as observações e/ou o documento e reenvie para validação.{% else %}Receba o atestado do cliente (PDF ou imagem) e crie a solicitação. Ela entra direto na fila de Validações — a extração automática dos dados ainda não está implementada nesta etapa.{% endif %}</p>
+    </div>
+</div>
+
+{% if edicao_id and anexos %}
+<div class="form-card" style="margin-bottom: 16px;">
+    <label style="font-size:12.5px;font-weight:600;color:var(--heading);margin-bottom:8px;display:block;">Documento(s) já enviado(s)</label>
+    {% for anexo in anexos %}
+    <div class="anexo-item">
+        <span>{{ anexo.caminho_arquivo.replace('\\', '/').split('/')[-1] }}</span>
+        <form method="post" action="{{ url_for('excluir_anexo', anexo_id=anexo.id) }}" style="margin:0;"
+              onsubmit="return confirm('Remover este documento?');">
+            <button type="submit" class="btn btn-fantasma" style="padding:5px 11px;font-size:12px;">Remover</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<form class="form-card" method="post" enctype="multipart/form-data">
+    {% if usuario_logado and usuario_logado.eh_cliente %}
+    {{ m.escolha_empresa(travada=(edicao_id is defined and edicao_id)) }}
+    {% elif not edicao_id %}
+    <div class="campo">
+        <label for="cliente_nome">Cliente</label>
+        <input type="text" id="cliente_nome" name="cliente_nome" value="{{ form.get('cliente_nome', '') }}" placeholder="Ex: Comercial Silva Ltda" required>
+    </div>
+
+    <div class="campo">
+        <label for="cliente_cnpj">CNPJ do cliente <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+        <input type="text" id="cliente_cnpj" name="cliente_cnpj" value="{{ form.get('cliente_cnpj', '') }}" placeholder="00.000.000/0001-00">
+    </div>
+    {% endif %}
+
+    <div class="campo">
+        <label for="funcionario_nome">Funcionário</label>
+        <input type="text" id="funcionario_nome" name="funcionario_nome" value="{{ form.get('funcionario_nome', '') }}" placeholder="Nome completo do funcionário" {{ 'readonly' if edicao_id else 'required' }}>
+    </div>
+
+    <div class="campo">
+        <label>{{ "Adicionar / substituir documento" if edicao_id else "Arquivo do atestado" }} {% if edicao_id %}<span style="font-weight:400;color:var(--text-muted)">(opcional)</span>{% endif %}</label>
+        <div class="dropzone">
+            <input type="file" name="arquivo" accept=".pdf,.png,.jpg,.jpeg">
+            <div class="icone-arquivo">[ ↑ ]</div>
+            <div class="instrucao">Clique ou arraste o arquivo aqui</div>
+            <div class="nome-arquivo"></div>
+        </div>
+        <div class="ajuda">Formatos aceitos: PDF, PNG ou JPG.</div>
+    </div>
+
+    <div class="campo">
+        <label for="observacoes">Observações <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+        <textarea id="observacoes" name="observacoes" placeholder="Qualquer informação adicional relevante para o analista...">{{ form.get('observacoes', '') }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primario">{{ "Reenviar para validação" if edicao_id else "Enviar atestado" }}</button>
+</form>
+{% endblock %}

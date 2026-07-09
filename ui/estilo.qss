@@ -1,0 +1,94 @@
+/* ui/estilo.qss
+   Stylesheet do PyQt5, com a mesma paleta da versão web (Automação DP).
+   Aplicado em main.py via app.setStyleSheet(...).
+*/
+
+QWidget {
+    background: #F5F7F7;
+    color: #1C2B36;
+    font-family: "Segoe UI", "Inter", sans-serif;
+    font-size: 13px;
+}
+
+QMainWindow {
+    background: #F5F7F7;
+}
+
+QTabWidget::pane {
+    border: 1px solid #E1E6E8;
+    background: #FFFFFF;
+    border-radius: 6px;
+}
+
+QTabBar::tab {
+    background: #EDF0F1;
+    color: #5B6B76;
+    padding: 9px 18px;
+    margin-right: 2px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    font-weight: 600;
+}
+
+QTabBar::tab:selected {
+    background: #16324A;
+    color: #FFFFFF;
+}
+
+QTabBar::tab:hover:!selected {
+    background: #DCE3E6;
+}
+
+QPushButton {
+    background: #2C6E9E;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-weight: 600;
+}
+QPushButton:hover { background: #2E7DB2; }
+QPushButton:pressed { background: #235676; }
+
+QTableWidget {
+    background: white;
+    gridline-color: #E1E6E8;
+    border: 1px solid #E1E6E8;
+    border-radius: 6px;
+    selection-background-color: #E7F0F7;
+    selection-color: #16324A;
+}
+QHeaderView::section {
+    background: #FAFBFB;
+    color: #5B6B76;
+    padding: 6px;
+    border: none;
+    border-bottom: 1px solid #E1E6E8;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+QListWidget {
+    background: white;
+    border: 1px solid #E1E6E8;
+    border-radius: 6px;
+}
+QListWidget::item { padding: 7px 8px; }
+QListWidget::item:selected { background: #2C6E9E; color: white; }
+
+QTextEdit {
+    background: white;
+    border: 1px solid #E1E6E8;
+    border-radius: 6px;
+    padding: 6px;
+}
+
+QComboBox {
+    background: white;
+    border: 1px solid #E1E6E8;
+    border-radius: 6px;
+    padding: 5px 8px;
+}
+
+QLabel { color: #1C2B36; }

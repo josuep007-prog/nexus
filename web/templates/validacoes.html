@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}Validações · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Fila de trabalho</div>
+        <h1>Validações pendentes</h1>
+        <p class="descricao">Tudo que está parado esperando uma decisão humana — a validação obrigatória do Bloco 1, ou qualquer uma das aprovações do Bloco 2.</p>
+    </div>
+</div>
+
+{% if fila %}
+<div class="fila-validacao">
+    {% for sol in fila %}
+    <div class="card-validacao">
+        <div class="cabecalho-validacao">
+            <div class="titulo-validacao">#{{ sol.id }} — {{ rotulo_tipo(sol.tipo) }} <span style="color:var(--text-muted); font-weight:400;">· {{ sol._row.cliente_nome or "—" }}</span></div>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                {% set sit = situacao_prazo(sol) %}
+                {% if sit in ('atencao', 'estourado') %}
+                <span class="tag-prazo {{ sit }}">⏱ {{ rotulo_prazo(sol) }}</span>
+                {% endif %}
+                {{ m.carimbo_status(sol.status) }}
+            </div>
+        </div>
+        <div class="meta">
+            Funcionário: {{ sol._row.funcionario_nome or "—" }} · Canal: {{ sol._row.canal_origem or "—" }} ·
+            <a href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">ver detalhes</a>
+        </div>
+
+        {% set pendencias = (sol.dados.get('extracao_erros') or []) + (sol.dados.get('triagem_erros') or []) %}
+        {% if pendencias %}
+        <div class="caixa-aviso" style="margin-bottom:10px;">
+            ⚠ {{ pendencias|length }} pendência(s) encontrada(s):
+            <ul>
+                {% for p in pendencias %}<li>{{ p }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if sol.dados %}
+        <div class="dados-lista">
+            {% for chave, valor in sol.dados.items() %}
+                {% if valor and chave not in ("triagem_erros", "extracao_erros") %}
+                    <code>{{ chave }}</code>: {{ valor }}&nbsp;&nbsp;
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('decidir_validacao', solicitacao_id=sol.id) }}" class="acoes-validacao">
+            <input type="text" name="comentario" placeholder="Comentário (opcional)">
+            {% if sol.status in ("aguardando_validacao_humana", "aguardando_aprovacao_1") %}
+            {# Ponto do trabalho no Domínio: o analista escolhe automatizar ou atender na mão.
+               Tipos não-automatizáveis (ex.: 'outros') só oferecem atendimento manual. #}
+            {% if automatizavel(sol) %}
+            <button type="submit" name="decisao" value="aprovar_auto" class="btn btn-sucesso" title="Aprovar e mandar a automação processar no Domínio">✓ Aprovar e automatizar</button>
+            <button type="submit" name="decisao" value="aprovar_manual" class="btn btn-fantasma" title="Aprovar e atender manualmente no Domínio">✋ Aprovar e atender manual</button>
+            {% else %}
+            <button type="submit" name="decisao" value="aprovar_manual" class="btn btn-sucesso" title="Aprovar e atender manualmente no Domínio">✓ Aprovar e atender manual</button>
+            {% endif %}
+            {% else %}
+            <button type="submit" name="decisao" value="aprovar" class="btn btn-sucesso">✓ Aprovar</button>
+            {% endif %}
+            <button type="submit" name="decisao" value="reprovar" class="btn btn-perigo">✕ Reprovar</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="painel">
+    <div class="vazio">
+        <div class="titulo-vazio">Fila vazia</div>
+        Não há nenhuma solicitação aguardando validação no momento.
+    </div>
+</div>
+{% endif %}
+{% endblock %}

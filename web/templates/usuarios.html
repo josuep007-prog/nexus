@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block titulo %}Usuários · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Escritório</div>
+        <h1>Usuários</h1>
+        <p class="descricao">Crie contas, desative acessos, redefina senhas e vincule empresas extras
+            (grupo econômico) às contas de cliente.</p>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 100%; margin-bottom: 22px;">
+    <h3>Nova conta</h3>
+    <form method="post" action="{{ url_for('criar_usuario_web') }}" class="form-linha">
+        <div class="campo">
+            <label for="nc-login">Login</label>
+            <input type="text" id="nc-login" name="login" required>
+        </div>
+        <div class="campo">
+            <label for="nc-senha">Senha</label>
+            <input type="text" id="nc-senha" name="senha" required autocomplete="off">
+        </div>
+        <div class="campo">
+            <label for="nc-tipo">Tipo</label>
+            <select id="nc-tipo" name="tipo_conta"
+                    onchange="document.getElementById('campo-cnpj').style.display = this.value === 'cliente' ? '' : 'none'">
+                <option value="cliente">Cliente</option>
+                <option value="funcionario">Funcionário</option>
+            </select>
+        </div>
+        <div class="campo">
+            <label for="nc-nome">Nome / razão social</label>
+            <input type="text" id="nc-nome" name="nome_exibicao" required>
+        </div>
+        <div class="campo" id="campo-cnpj">
+            <label for="nc-cnpj">CNPJ (cliente)</label>
+            <input type="text" id="nc-cnpj" name="cliente_cnpj" placeholder="00.000.000/0001-00">
+        </div>
+        <div class="campo">
+            <label for="nc-email">E-mail (avisos)</label>
+            <input type="email" id="nc-email" name="email" placeholder="opcional">
+        </div>
+        <div class="campo campo-botao">
+            <button type="submit" class="btn btn-primario">Criar conta</button>
+        </div>
+    </form>
+</div>
+
+<div class="painel">
+    <div class="lista-solicitacoes">
+        {% for u in usuarios %}
+        <div class="item-usuario {{ 'inativo' if not u._row.ativo }}">
+            <div class="cab-usuario">
+                <span class="avatar-lista">{{ u.nome_exibicao[:1]|upper }}</span>
+                <div>
+                    <div class="nome-usuario">{{ u.nome_exibicao }}
+                        <span class="mono login-usuario">{{ u.login }}</span>
+                        {% if not u._row.ativo %}<span class="tag-vista">desativada</span>{% endif %}
+                    </div>
+                    <div class="meta-usuario">
+                        {{ 'Funcionário do escritório' if u.eh_funcionario else 'Cliente' }}
+                        {% if u.cliente_cnpj %} · <span class="mono">{{ u.cliente_cnpj }}</span>{% endif %}
+                        {% if u.email %} · {{ u.email }}{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if u.eh_cliente and u.empresas_extras() %}
+            <div class="empresas-extras">
+                {% for e in u.empresas_extras() %}
+                <form method="post" action="{{ url_for('remover_empresa', empresa_id=e.id) }}" class="chip-empresa">
+                    <span>{{ e.nome or e.cnpj }} <span class="mono">{{ e.cnpj }}</span></span>
+                    <button type="submit" title="Desvincular empresa">×</button>
+                </form>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="acoes-usuario">
+                <form method="post" action="{{ url_for('resetar_senha_usuario', usuario_id=u.id) }}">
+                    <input type="text" name="senha_nova" placeholder="nova senha" autocomplete="off">
+                    <button type="submit" class="btn btn-fantasma btn-mini">Redefinir senha</button>
+                </form>
+                <form method="post" action="{{ url_for('salvar_email_usuario', usuario_id=u.id) }}">
+                    <input type="email" name="email" placeholder="e-mail de avisos" value="{{ u.email or '' }}">
+                    <button type="submit" class="btn btn-fantasma btn-mini">Salvar e-mail</button>
+                </form>
+                {% if u.eh_cliente %}
+                <form method="post" action="{{ url_for('adicionar_empresa', usuario_id=u.id) }}">
+                    <input type="text" name="cnpj" placeholder="CNPJ extra">
+                    <input type="text" name="nome" placeholder="razão social">
+                    <button type="submit" class="btn btn-fantasma btn-mini">+ Empresa</button>
+                </form>
+                {% endif %}
+                {% if u.id != usuario_logado.id %}
+                <form method="post" action="{{ url_for('alternar_usuario_ativo', usuario_id=u.id) }}">
+                    <button type="submit" class="btn {{ 'btn-sucesso' if not u._row.ativo else 'btn-perigo' }} btn-mini">
+                        {{ 'Reativar' if not u._row.ativo else 'Desativar' }}
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

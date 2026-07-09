@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Alertas · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Painel de vencimentos</div>
+        <h1>Alertas</h1>
+        <p class="descricao">Férias vencendo, fim de contrato de experiência, prazos de impostos e obrigações.</p>
+    </div>
+</div>
+
+{% if alertas %}
+<div class="painel">
+    <div class="lista-solicitacoes">
+        {% for alerta in alertas %}
+        <div class="item-solicitacao" style="grid-template-columns: 56px 1fr 160px 130px;">
+            <div class="id mono">#{{ alerta.id }}</div>
+            <div>
+                <div class="tipo">{{ alerta.descricao }}</div>
+                <div class="bloco-tag">{{ alerta.tipo }}</div>
+            </div>
+            <div class="cliente">{{ alerta.data_vencimento or "—" }}</div>
+            <div>
+                <form method="post" action="{{ url_for('resolver_alerta', alerta_id=alerta.id) }}">
+                    <button type="submit" class="btn btn-fantasma">Marcar resolvido</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="painel">
+    <div class="vazio">
+        <div class="titulo-vazio">Nenhum alerta pendente</div>
+        Tudo em dia por aqui.
+    </div>
+</div>
+{% endif %}
+{% endblock %}

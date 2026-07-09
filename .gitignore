@@ -1,0 +1,20 @@
+# Dados locais (banco SQLite, anexos enviados, documentos gerados)
+data/
+
+# Logs e backups do banco
+logs/
+backups/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.venv/
+
+# Segredos — nunca commitar credenciais (SMTP, VAPID, SECRET_KEY vão por env)
+.env
+
+# Config local do Claude Code (permissões da máquina)
+.claude/settings.local.json

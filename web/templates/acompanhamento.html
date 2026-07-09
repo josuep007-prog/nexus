@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}Acompanhar · Automação DP{% endblock %}
+
+{% macro grupo(titulo, itens, dica=None, destaque=False) %}
+{% if itens %}
+<div class="grupo-acomp {{ 'destaque' if destaque }}">
+    <h3 class="grupo-acomp-titulo">{{ titulo }} <span class="cnt">{{ itens|length }}</span></h3>
+    {% if dica %}<div class="grupo-acomp-dica">{{ dica }}</div>{% endif %}
+    <div class="painel">
+        <div class="lista-solicitacoes">
+            {% for sol in itens %}
+            <a class="item-solicitacao" style="grid-template-columns: 48px 1fr 210px;" href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">
+                <div class="id mono">#{{ sol.id }}</div>
+                <div class="tipo">{{ rotulo_tipo(sol.tipo) }}</div>
+                <div>{{ m.carimbo_status(sol.status) }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Acompanhamento</div>
+        <h1>Minhas solicitações</h1>
+        <p class="descricao">Acompanhe o status de cada solicitação. No topo, o que precisa da sua atenção: correções pedidas pelo escritório e novas entregas.</p>
+    </div>
+</div>
+
+{% if total == 0 %}
+<div class="painel"><div class="vazio">
+    <div class="titulo-vazio">Você ainda não tem solicitações</div>
+    Toque em “+ Nova” para criar a primeira.
+</div></div>
+{% else %}
+    {{ grupo("↩ Devolvidas para correção", devolvidas,
+             dica="O escritório pediu ajustes. Toque para corrigir e reenviar (ou excluir).", destaque=True) }}
+    {{ grupo("✓ Novas entregas", novas,
+             dica="Concluídas que você ainda não abriu — toque para ver o que o escritório entregou.") }}
+    {{ grupo("⏳ Em andamento", andamento,
+             dica="Já recebidas pelo escritório e em processamento.") }}
+    {{ grupo("Concluídas", concluidas) }}
+{% endif %}
+{% endblock %}

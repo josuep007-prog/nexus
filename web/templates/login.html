@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+
+    <script>
+    (function () {
+        var salvo = localStorage.getItem('tema');
+        var sistema = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';
+        document.documentElement.dataset.tema = salvo || sistema;
+    })();
+    function alternarTema() {
+        var novo = document.documentElement.dataset.tema === 'escuro' ? 'claro' : 'escuro';
+        document.documentElement.dataset.tema = novo;
+        localStorage.setItem('tema', novo);
+        document.querySelectorAll('[data-tema-icone]').forEach(function (el) {
+            el.textContent = novo === 'escuro' ? '☀' : '☾';
+        });
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        var tema = document.documentElement.dataset.tema;
+        document.querySelectorAll('[data-tema-icone]').forEach(function (el) {
+            el.textContent = tema === 'escuro' ? '☀' : '☾';
+        });
+    });
+    </script>
+
+    <title>Entrar · Automação DP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <button type="button" class="toggle-tema-flutuante" onclick="alternarTema()" title="Alternar tema claro/escuro">
+        <span data-tema-icone>☾</span>
+    </button>
+    <div class="login-tela">
+        <form class="login-card" method="post">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <div class="brand">Automação DP</div>
+            <div class="brand-sub">Departamento Pessoal</div>
+
+            {% with mensagens = get_flashed_messages(with_categories=true) %}
+                {% if mensagens %}
+                <div class="flash-lista">
+                    {% for categoria, texto in mensagens %}
+                        <div class="flash flash-{{ categoria }}">{{ texto }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="campo">
+                <label for="login">Login</label>
+                <input type="text" id="login" name="login" value="{{ form.get('login', '') }}"
+                       placeholder="e-mail ou usuário" autocomplete="username" autofocus required>
+            </div>
+
+            <div class="campo">
+                <label for="senha">Senha</label>
+                <input type="password" id="senha" name="senha"
+                       placeholder="sua senha" autocomplete="current-password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primario" style="width:100%;">Entrar</button>
+        </form>
+    </div>
+</body>
+</html>

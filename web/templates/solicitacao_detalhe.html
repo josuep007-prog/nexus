@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}Solicitação #{{ sol.id }} · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow"><a href="{{ url_for('solicitacoes') }}">← Solicitações</a></div>
+        <h1>#{{ sol.id }} — {{ rotulo_tipo(sol.tipo) }}</h1>
+        <p class="descricao">{{ sol._row.cliente_nome or "—" }} {% if sol._row.funcionario_nome %}· {{ sol._row.funcionario_nome }}{% endif %}</p>
+    </div>
+    {{ m.carimbo_status(sol.status) }}
+</div>
+
+{# Stepper: onde a solicitação está no fluxo (reprovada interrompe em Validação) #}
+{% set bucket = bucket_status(sol.status) %}
+{% if sol.status == 'concluida' %}{% set passo = 4 %}
+{% elif sol.status == 'aguardando_entrega' %}{% set passo = 3 %}
+{% elif bucket == 'processamento' %}{% set passo = 2 %}
+{% elif bucket in ('aguardando', 'reprovadas') %}{% set passo = 1 %}
+{% else %}{% set passo = 0 %}{% endif %}
+{% set reprovada = sol.status == 'reprovada' %}
+<div class="stepper {{ 'stepper-reprovada' if reprovada }}">
+    {% for rotulo in ['Recebida', 'Validação', 'Processamento', 'Entrega', 'Concluída'] %}
+    {% set i = loop.index0 %}
+    <div class="passo {{ 'feito' if i < passo }} {{ 'atual' if i == passo }}">
+        <span class="ponto">{% if i < passo %}✓{% elif reprovada and i == passo %}✕{% endif %}</span>
+        <span class="rotulo-passo">{{ rotulo }}</span>
+    </div>
+    {% if not loop.last %}<div class="trilho {{ 'feito' if i < passo }}"></div>{% endif %}
+    {% endfor %}
+</div>
+
+{% if sol.status == "reprovada" %}
+<div class="caixa-reprovada">
+    <div class="titulo-reprovada">✕ Solicitação reprovada</div>
+    <p class="motivo">{{ sol.dados.get('motivo_reprovacao') or "O analista reprovou esta solicitação." }}</p>
+    <p class="orientacao">Corrija os dados e reenvie, ou exclua a solicitação.</p>
+    <div class="acoes-reprovada">
+        {% if pode_editar %}
+        <a href="{{ url_for('editar_solicitacao', solicitacao_id=sol.id) }}" class="btn btn-primario">Editar e reenviar</a>
+        {% endif %}
+        <form method="post" action="{{ url_for('excluir_solicitacao', solicitacao_id=sol.id) }}"
+              onsubmit="return confirm('Excluir esta solicitação? Essa ação não pode ser desfeita.');">
+            <button type="submit" class="btn btn-perigo">Excluir</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="grade-detalhe">
+    <div>
+        <div class="bloco-info">
+            <h4>Dados da solicitação</h4>
+            <div class="linha-dado"><span class="chave">Bloco</span><span class="valor mono">{{ sol.bloco }}</span></div>
+            <div class="linha-dado"><span class="chave">Canal de origem</span><span class="valor">{{ sol._row.canal_origem or "—" }}</span></div>
+            <div class="linha-dado"><span class="chave">Cliente</span><span class="valor">{{ sol._row.cliente_nome or "—" }}</span></div>
+            <div class="linha-dado"><span class="chave">CNPJ</span><span class="valor mono">{{ sol._row.cliente_cnpj or "—" }}</span></div>
+            <div class="linha-dado"><span class="chave">Funcionário</span><span class="valor">{{ sol._row.funcionario_nome or "—" }}</span></div>
+            <div class="linha-dado"><span class="chave">Criado em</span><span class="valor mono">{{ sol._row.criado_em }}</span></div>
+            <div class="linha-dado"><span class="chave">Atualizado em</span><span class="valor mono">{{ sol._row.atualizado_em }}</span></div>
+            {% for chave, valor in sol.dados.items() %}
+                {% if valor and chave not in ("triagem_erros", "extracao_erros") %}
+                <div class="linha-dado"><span class="chave">{{ chave }}</span><span class="valor">{{ valor }}</span></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {% set pendencias = (sol.dados.get('extracao_erros') or []) + (sol.dados.get('triagem_erros') or []) %}
+        {% if pendencias %}
+        <div class="bloco-info caixa-aviso">
+            <h4>Pendências encontradas</h4>
+            <ul style="margin:0; padding-left:18px; font-size:13px;">
+                {% for p in pendencias %}<li>{{ p }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% set anexos_cliente = anexos | selectattr('origem', 'equalto', 'cliente') | list %}
+        {% set anexos_escritorio = anexos | selectattr('origem', 'equalto', 'escritorio') | list %}
+
+        {% if sol.dados.get('resumo_entrega') or anexos_escritorio %}
+        <div class="bloco-info" style="border-color:var(--accent-green); ">
+            <h4 style="color:var(--accent-green);">✓ Entregue pelo escritório</h4>
+            {% if sol.dados.get('resumo_entrega') %}
+            <p style="margin:0 0 12px; font-size:13px; color:var(--text);">{{ sol.dados.get('resumo_entrega') }}</p>
+            {% endif %}
+            {% for anexo in anexos_escritorio %}
+            <div class="anexo-item">
+                <span>{{ anexo.caminho_arquivo.replace('\\', '/').split('/')[-1] }}</span>
+                <a href="{{ url_for('anexo_arquivo', anexo_id=anexo.id) }}" target="_blank">Abrir →</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="bloco-info">
+            <h4>Documentos que você enviou</h4>
+            {% if anexos_cliente %}
+                {% for anexo in anexos_cliente %}
+                <div class="anexo-item">
+                    <span>{{ anexo.caminho_arquivo.replace('\\', '/').split('/')[-1] }}</span>
+                    <a href="{{ url_for('anexo_arquivo', anexo_id=anexo.id) }}" target="_blank">Abrir →</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="descricao" style="margin:0;">Nenhum documento enviado nesta solicitação.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div>
+        <div class="bloco-info">
+            <h4>Responsáveis</h4>
+            {% if historico %}
+            <ul class="timeline">
+                {% for v in historico %}
+                <li>
+                    <strong>{{ rotulo_etapa(v.etapa) }}</strong>
+                    {% if v.etapa in etapas_de_decisao %} — {{ "Aprovado" if v.aprovado else "Reprovado" }}{% endif %}<br>
+                    <span style="color:var(--text-muted)">Por: <strong style="color:var(--text)">{{ v.aprovado_por or "—" }}</strong> · {{ v.data }}</span>
+                    {% if v.comentario %}<br><span style="color:var(--text-muted)">"{{ v.comentario }}"</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="descricao" style="margin:0;">Ainda sem etapas registradas.</p>
+            {% endif %}
+        </div>
+
+        <div class="bloco-info" id="comentarios">
+            <h4>Mensagens</h4>
+            {% if comentarios %}
+            <div class="lista-comentarios">
+                {% for c in comentarios %}
+                <div class="comentario {{ 'do-escritorio' if c.tipo_conta == 'funcionario' else 'do-cliente' }}">
+                    <div class="autor-comentario">
+                        {{ c.autor }}
+                        <span class="lado-comentario">{{ 'escritório' if c.tipo_conta == 'funcionario' else 'cliente' }}</span>
+                    </div>
+                    <div class="texto-comentario">{{ c.texto }}</div>
+                    <div class="data-comentario mono">{{ c.criado_em }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="descricao" style="margin:0 0 12px;">Sem mensagens ainda. Use este espaço para
+                combinar detalhes sem precisar reprovar a solicitação.</p>
+            {% endif %}
+            <form method="post" action="{{ url_for('comentar_solicitacao', solicitacao_id=sol.id) }}" class="form-comentario">
+                <textarea name="texto" rows="2" placeholder="Escreva uma mensagem..." required></textarea>
+                <button type="submit" class="btn btn-primario" style="align-self:flex-end;">Enviar</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
