@@ -1,144 +1,195 @@
 /* ui/estilo.qss
-   Estilo do PAINEL DO ROBÔ (desktop). Propósito é OPERAR a automação na
-   máquina-host, então a cara é de "console de operação": fundo escuro,
-   tipografia técnica, status em destaque. Deliberadamente diferente da web
-   (que é clara, clientela, formulários) — são programas com papéis distintos.
+   Estilo do PAINEL DO ROBÔ (desktop). Identidade de "sala de controle":
+   azul-noite profundo, cartões suaves com filete de cor, status em pílula,
+   log com cara de terminal. Deliberadamente diferente da web (clara, de
+   formulários) — aqui o assunto é operar a automação na máquina-host.
 */
 
+/* ---------- base ---------- */
 QWidget {
-    background: #0E1621;
-    color: #C9D6E0;
+    background: #0C1420;
+    color: #D7E2EC;
     font-family: "Segoe UI", "Inter", sans-serif;
     font-size: 13px;
 }
+QMainWindow { background: #0C1420; }
+/* Labels não pintam fundo próprio — herdam o do cartão onde estão */
+QLabel { background: transparent; }
 
-QMainWindow { background: #0E1621; }
-
-/* Cabeçalho */
+/* ---------- cabeçalho ---------- */
 QLabel#titulo {
-    color: #EAF2F7;
-    font-size: 22px;
+    color: #F2F7FB;
+    font-size: 23px;
     font-weight: 800;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
 }
 QLabel#subtitulo {
-    color: #6E8493;
+    color: #7D91A3;
     font-size: 12px;
 }
 QLabel#secao {
-    color: #7C93A4;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    padding-top: 4px;
-}
-
-/* Cartões (barra de status, contadores) */
-QFrame#cartao {
-    background: #17242F;
-    border: 1px solid #26384570;
-    border-radius: 10px;
-}
-
-/* Indicador de status: bolinha grande que muda de cor pelo 'estado' */
-QLabel#statusPonto {
-    font-size: 20px;
-    color: #5A6B78;              /* parado = cinza */
-    padding-right: 4px;
-}
-QLabel#statusPonto[estado="on"] { color: #35C892; }   /* rodando = verde */
-QLabel#statusPonto[estado="off"] { color: #5A6B78; }
-QLabel#statusRotulo {
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    color: #EAF2F7;
-}
-
-/* Aviso de pré-requisitos (âmbar, chama atenção sem alarmar) */
-QLabel#aviso {
-    background: #2A230F;
-    border: 1px solid #5A4A1E;
-    border-radius: 8px;
-    color: #E4C078;
-    padding: 10px 12px;
-}
-
-/* Contadores */
-QLabel#contadorValor {
-    color: #6FB2E0;
-    font-size: 30px;
-    font-weight: 800;
-}
-QLabel#contadorRotulo {
-    color: #7C93A4;
-    font-size: 11px;
-}
-
-/* Botões */
-QPushButton {
-    background: #22333F;
-    color: #DCE6EC;
-    border: 1px solid #2E4351;
-    border-radius: 8px;
-    padding: 9px 16px;
-    font-weight: 700;
-}
-QPushButton:hover { background: #2A3D4B; }
-QPushButton:disabled { color: #5A6B78; background: #1A2831; border-color: #223039; }
-
-QPushButton#btnIniciar {
-    background: #1F7A54; border-color: #23895F; color: #FFFFFF;
-}
-QPushButton#btnIniciar:hover { background: #248A5F; }
-QPushButton#btnParar {
-    background: #7A2E22; border-color: #8A3324; color: #FFFFFF;
-}
-QPushButton#btnParar:hover { background: #8A3626; }
-QPushButton#btnFantasma {
-    background: transparent; border: 1px solid #2E4351; color: #9FB2BF;
-}
-QPushButton#btnFantasma:hover { background: #17242F; }
-
-QSpinBox {
-    background: #101C25;
-    border: 1px solid #2E4351;
-    border-radius: 6px;
-    padding: 5px 8px;
-    color: #DCE6EC;
-}
-
-/* Tabela da fila */
-QTableWidget {
-    background: #101C25;
-    gridline-color: #223039;
-    border: 1px solid #26384570;
-    border-radius: 10px;
-    selection-background-color: #1E3A4E;
-    selection-color: #EAF2F7;
-}
-QHeaderView::section {
-    background: #17242F;
-    color: #7C93A4;
-    padding: 7px;
-    border: none;
-    border-bottom: 1px solid #223039;
-    font-weight: 700;
+    color: #5E7386;
     font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding-top: 6px;
+}
+
+/* ---------- pílula de status (RODANDO / PARADO) ---------- */
+QLabel#statusPill {
+    border-radius: 15px;
+    padding: 7px 18px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+}
+QLabel#statusPill[estado="off"] {
+    background: #1B2836;
+    color: #8CA0B3;
+    border: 1px solid #2A3D50;
+}
+QLabel#statusPill[estado="on"] {
+    background: #0F3A2B;
+    color: #4FE0A6;
+    border: 1px solid #1E6B4C;
+}
+
+/* ---------- cartões ---------- */
+QFrame#cartao {
+    background: #131E2B;
+    border: 1px solid #223447;
+    border-radius: 14px;
+}
+/* filete de cor à esquerda, por métrica (mesma didática da web) */
+QFrame#cartao[accent="azul"]  { border-left: 3px solid #4DA3E0; }
+QFrame#cartao[accent="verde"] { border-left: 3px solid #34C98E; }
+QFrame#cartao[accent="ambar"] { border-left: 3px solid #E3B95C; }
+
+/* contadores */
+QLabel#contadorValor {
+    font-family: "Consolas", "JetBrains Mono", monospace;
+    font-size: 32px;
+    font-weight: 800;
+    color: #F2F7FB;
+}
+QFrame#cartao[accent="azul"]  QLabel#contadorValor { color: #4DA3E0; }
+QFrame#cartao[accent="verde"] QLabel#contadorValor { color: #34C98E; }
+QFrame#cartao[accent="ambar"] QLabel#contadorValor { color: #E3B95C; }
+QLabel#contadorRotulo {
+    color: #7D91A3;
+    font-size: 11px;
+}
+
+/* ---------- aviso de pré-requisitos ---------- */
+QLabel#aviso {
+    background: rgba(227, 185, 92, 0.07);
+    border: 1px solid rgba(227, 185, 92, 0.28);
+    border-radius: 10px;
+    color: #E3B95C;
+    padding: 11px 14px;
+}
+
+/* ---------- botões ---------- */
+QPushButton {
+    background: #1B2836;
+    color: #D7E2EC;
+    border: 1px solid #2C4156;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-weight: 700;
+}
+QPushButton:hover { background: #223243; border-color: #3A526B; }
+QPushButton:pressed { background: #17222E; }
+QPushButton:disabled { color: #55697C; background: #141E29; border-color: #1E2C3B; }
+
+/* Ligar: verde sólido com leve gradiente, texto escuro (alto contraste) */
+QPushButton#btnIniciar {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2FBE88, stop:1 #1E8A61);
+    border: 1px solid #35CE94;
+    color: #05130C;
+    font-weight: 800;
+}
+QPushButton#btnIniciar:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #38D399, stop:1 #23996D);
+}
+QPushButton#btnIniciar:disabled {
+    background: #16382C;
+    border-color: #1C4636;
+    color: #3E6B57;
+}
+
+/* Parar: contorno vermelho (perigo discreto, sem gritar) */
+QPushButton#btnParar {
+    background: transparent;
+    border: 1px solid #8A4436;
+    color: #F0917E;
+}
+QPushButton#btnParar:hover { background: rgba(224, 101, 79, 0.12); border-color: #B0503C; }
+QPushButton#btnParar:disabled { background: transparent; border-color: #3A2A26; color: #6B4A42; }
+
+QPushButton#btnFantasma {
+    background: transparent;
+    border: 1px solid #2C4156;
+    color: #8CA0B3;
+    padding: 7px 14px;
+}
+QPushButton#btnFantasma:hover { background: #131E2B; }
+
+/* ---------- campo de intervalo ---------- */
+QSpinBox {
+    background: #101927;
+    border: 1px solid #2C4156;
+    border-radius: 8px;
+    padding: 7px 10px;
+    color: #D7E2EC;
+    font-weight: 700;
+}
+QSpinBox::up-button, QSpinBox::down-button { width: 16px; border: none; background: #1B2836; }
+QSpinBox::up-button { border-top-right-radius: 8px; }
+QSpinBox::down-button { border-bottom-right-radius: 8px; }
+QSpinBox::up-arrow { width: 7px; height: 7px; }
+QSpinBox::down-arrow { width: 7px; height: 7px; }
+
+/* ---------- tabela da fila ---------- */
+QTableWidget {
+    background: #101927;
+    alternate-background-color: #131E2B;
+    border: 1px solid #223447;
+    border-radius: 12px;
+    gridline-color: transparent;
+    selection-background-color: #1D3A52;
+    selection-color: #F2F7FB;
+    padding: 4px;
+}
+QTableWidget::item { padding: 6px 10px; border: none; }
+QHeaderView::section {
+    background: transparent;
+    color: #5E7386;
+    padding: 9px 10px;
+    border: none;
+    font-weight: 800;
+    font-size: 10px;
+    letter-spacing: 1px;
     text-transform: uppercase;
 }
+QTableCornerButton::section { background: transparent; border: none; }
 
-/* Log ao vivo: cara de terminal, fonte monoespaçada */
+/* ---------- log ao vivo (terminal) ---------- */
 QTextEdit#log {
-    background: #0A121A;
-    border: 1px solid #223039;
-    border-radius: 10px;
-    padding: 10px;
-    color: #8FE3B8;
+    background: #0A111B;
+    border: 1px solid #1C2B3B;
+    border-radius: 12px;
+    padding: 12px;
+    color: #7FDFAE;
     font-family: "Consolas", "JetBrains Mono", monospace;
     font-size: 12px;
 }
 
-QScrollBar:vertical { background: transparent; width: 10px; }
-QScrollBar::handle:vertical { background: #2E4351; border-radius: 5px; }
-QScrollBar::add-line, QScrollBar::sub-line { height: 0; }
+/* ---------- barras de rolagem finas ---------- */
+QScrollBar:vertical { background: transparent; width: 8px; margin: 2px; }
+QScrollBar::handle:vertical { background: #2C4156; border-radius: 4px; min-height: 24px; }
+QScrollBar::handle:vertical:hover { background: #3A526B; }
+QScrollBar:horizontal { background: transparent; height: 8px; margin: 2px; }
+QScrollBar::handle:horizontal { background: #2C4156; border-radius: 4px; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
