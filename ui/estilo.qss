@@ -1,94 +1,144 @@
 /* ui/estilo.qss
-   Stylesheet do PyQt5, com a mesma paleta da versão web (Automação DP).
-   Aplicado em main.py via app.setStyleSheet(...).
+   Estilo do PAINEL DO ROBÔ (desktop). Propósito é OPERAR a automação na
+   máquina-host, então a cara é de "console de operação": fundo escuro,
+   tipografia técnica, status em destaque. Deliberadamente diferente da web
+   (que é clara, clientela, formulários) — são programas com papéis distintos.
 */
 
 QWidget {
-    background: #F5F7F7;
-    color: #1C2B36;
+    background: #0E1621;
+    color: #C9D6E0;
     font-family: "Segoe UI", "Inter", sans-serif;
     font-size: 13px;
 }
 
-QMainWindow {
-    background: #F5F7F7;
+QMainWindow { background: #0E1621; }
+
+/* Cabeçalho */
+QLabel#titulo {
+    color: #EAF2F7;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+QLabel#subtitulo {
+    color: #6E8493;
+    font-size: 12px;
+}
+QLabel#secao {
+    color: #7C93A4;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding-top: 4px;
 }
 
-QTabWidget::pane {
-    border: 1px solid #E1E6E8;
-    background: #FFFFFF;
-    border-radius: 6px;
+/* Cartões (barra de status, contadores) */
+QFrame#cartao {
+    background: #17242F;
+    border: 1px solid #26384570;
+    border-radius: 10px;
 }
 
-QTabBar::tab {
-    background: #EDF0F1;
-    color: #5B6B76;
-    padding: 9px 18px;
-    margin-right: 2px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    font-weight: 600;
+/* Indicador de status: bolinha grande que muda de cor pelo 'estado' */
+QLabel#statusPonto {
+    font-size: 20px;
+    color: #5A6B78;              /* parado = cinza */
+    padding-right: 4px;
+}
+QLabel#statusPonto[estado="on"] { color: #35C892; }   /* rodando = verde */
+QLabel#statusPonto[estado="off"] { color: #5A6B78; }
+QLabel#statusRotulo {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #EAF2F7;
 }
 
-QTabBar::tab:selected {
-    background: #16324A;
-    color: #FFFFFF;
+/* Aviso de pré-requisitos (âmbar, chama atenção sem alarmar) */
+QLabel#aviso {
+    background: #2A230F;
+    border: 1px solid #5A4A1E;
+    border-radius: 8px;
+    color: #E4C078;
+    padding: 10px 12px;
 }
 
-QTabBar::tab:hover:!selected {
-    background: #DCE3E6;
+/* Contadores */
+QLabel#contadorValor {
+    color: #6FB2E0;
+    font-size: 30px;
+    font-weight: 800;
+}
+QLabel#contadorRotulo {
+    color: #7C93A4;
+    font-size: 11px;
 }
 
+/* Botões */
 QPushButton {
-    background: #2C6E9E;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 7px 14px;
-    font-weight: 600;
+    background: #22333F;
+    color: #DCE6EC;
+    border: 1px solid #2E4351;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-weight: 700;
 }
-QPushButton:hover { background: #2E7DB2; }
-QPushButton:pressed { background: #235676; }
+QPushButton:hover { background: #2A3D4B; }
+QPushButton:disabled { color: #5A6B78; background: #1A2831; border-color: #223039; }
 
-QTableWidget {
-    background: white;
-    gridline-color: #E1E6E8;
-    border: 1px solid #E1E6E8;
+QPushButton#btnIniciar {
+    background: #1F7A54; border-color: #23895F; color: #FFFFFF;
+}
+QPushButton#btnIniciar:hover { background: #248A5F; }
+QPushButton#btnParar {
+    background: #7A2E22; border-color: #8A3324; color: #FFFFFF;
+}
+QPushButton#btnParar:hover { background: #8A3626; }
+QPushButton#btnFantasma {
+    background: transparent; border: 1px solid #2E4351; color: #9FB2BF;
+}
+QPushButton#btnFantasma:hover { background: #17242F; }
+
+QSpinBox {
+    background: #101C25;
+    border: 1px solid #2E4351;
     border-radius: 6px;
-    selection-background-color: #E7F0F7;
-    selection-color: #16324A;
+    padding: 5px 8px;
+    color: #DCE6EC;
+}
+
+/* Tabela da fila */
+QTableWidget {
+    background: #101C25;
+    gridline-color: #223039;
+    border: 1px solid #26384570;
+    border-radius: 10px;
+    selection-background-color: #1E3A4E;
+    selection-color: #EAF2F7;
 }
 QHeaderView::section {
-    background: #FAFBFB;
-    color: #5B6B76;
-    padding: 6px;
+    background: #17242F;
+    color: #7C93A4;
+    padding: 7px;
     border: none;
-    border-bottom: 1px solid #E1E6E8;
-    font-weight: 600;
-    font-size: 11px;
+    border-bottom: 1px solid #223039;
+    font-weight: 700;
+    font-size: 10px;
     text-transform: uppercase;
 }
 
-QListWidget {
-    background: white;
-    border: 1px solid #E1E6E8;
-    border-radius: 6px;
-}
-QListWidget::item { padding: 7px 8px; }
-QListWidget::item:selected { background: #2C6E9E; color: white; }
-
-QTextEdit {
-    background: white;
-    border: 1px solid #E1E6E8;
-    border-radius: 6px;
-    padding: 6px;
+/* Log ao vivo: cara de terminal, fonte monoespaçada */
+QTextEdit#log {
+    background: #0A121A;
+    border: 1px solid #223039;
+    border-radius: 10px;
+    padding: 10px;
+    color: #8FE3B8;
+    font-family: "Consolas", "JetBrains Mono", monospace;
+    font-size: 12px;
 }
 
-QComboBox {
-    background: white;
-    border: 1px solid #E1E6E8;
-    border-radius: 6px;
-    padding: 5px 8px;
-}
-
-QLabel { color: #1C2B36; }
+QScrollBar:vertical { background: transparent; width: 10px; }
+QScrollBar::handle:vertical { background: #2E4351; border-radius: 5px; }
+QScrollBar::add-line, QScrollBar::sub-line { height: 0; }

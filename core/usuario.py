@@ -5,9 +5,10 @@ Camada de autenticação: representa uma conta de acesso (funcionário do
 escritório ou cliente) como objeto Python, no mesmo estilo de
 core/solicitacao.py (classe fina em cima de database/db_manager.py).
 
-Tanto a versão web (web/app.py) quanto a versão desktop (ui/dialogo_login.py)
-devem autenticar chamando `Usuario.autenticar(login, senha)` — a lógica de
-senha mora só aqui, nunca é reimplementada em cada interface.
+A autenticação (usada pela web em web/app.py) chama `Usuario.autenticar(login,
+senha)` — a lógica de senha mora só aqui, nunca é reimplementada em cada
+interface. (O desktop hoje é o Painel do Robô e não faz login: é um quadro de
+operação local da máquina-host; contas são papel da web.)
 
 Dois tipos de conta:
 - 'funcionario' : pessoal do escritório, acesso total (todas as solicitações,

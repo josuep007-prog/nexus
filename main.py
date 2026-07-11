@@ -1,11 +1,18 @@
 """
 main.py
 --------
-Ponto de entrada do sistema. Roda:
+Ponto de entrada da versão DESKTOP, que hoje é o PAINEL DO ROBÔ.
+Roda na máquina-host (a que tem o Domínio aberto):
+
     python main.py
 
-Isso inicializa o banco SQLite (cria as tabelas se não existirem) e abre a
-janela principal do PyQt5.
+Diferente da web (que recebe e valida solicitações em qualquer lugar), este
+painel só OPERA a automação: liga/desliga o robô, mostra a fila, o log ao vivo
+e os erros. Toda a lógica de negócio continua compartilhada (core/, modules/,
+database/) — o painel é só a "casca" de operação.
+
+Não pede login: é um quadro de controle local da máquina do escritório. O
+acesso com contas (funcionário/cliente) é papel da web.
 """
 
 import sys
@@ -15,14 +22,13 @@ from PyQt5.QtWidgets import QApplication
 
 from database.db_manager import inicializar_banco
 from utils.logger import obter_logger
-from ui.main_window import MainWindow
-from ui.dialogo_login import DialogoLogin
+from ui.painel_worker import PainelWorker
 
 log = obter_logger(__name__)
 
 
 def main():
-    log.info("Iniciando sistema de Automação DP...")
+    log.info("Iniciando o Painel do Robô (desktop)...")
     inicializar_banco()
 
     app = QApplication(sys.argv)
@@ -31,16 +37,10 @@ def main():
     if folha_estilo.exists():
         app.setStyleSheet(folha_estilo.read_text(encoding="utf-8"))
 
-    # Exige login antes de abrir a janela principal. Cancelar encerra o app.
-    dialogo = DialogoLogin()
-    if dialogo.exec_() != DialogoLogin.Accepted:
-        log.info("Login cancelado; encerrando.")
-        sys.exit(0)
+    painel = PainelWorker()
+    painel.show()
 
-    janela = MainWindow(usuario=dialogo.usuario_autenticado)
-    janela.show()
-
-    log.info("Interface carregada para %s.", dialogo.usuario_autenticado.login)
+    log.info("Painel do Robô carregado.")
     sys.exit(app.exec_())
 
 

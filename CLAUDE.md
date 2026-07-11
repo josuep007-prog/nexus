@@ -19,26 +19,40 @@ outros projetos de automação do Domínio — ao implementar
 `integracao/dominio_rpa.py`, prefira reaproveitar os padrões que ele já usa
 em vez de propor uma abordagem do zero.
 
-## Três interfaces, um único núcleo
+## Interface principal (web) + painel do robô (desktop), um único núcleo
 
-- **Desktop**: PyQt5 (`main.py`, `ui/`)
-- **Web**: Flask (`web/app.py`, `web/templates/`, `web/static/`) — também é
-  um PWA instalável no Android (manifest.json + sw.js servidos na raiz)
-- Todas compartilham o mesmo banco SQLite (`data/dp_automacao.db`) e a
+- **Web**: Flask (`web/app.py`, `web/templates/`, `web/static/`) — é a
+  **interface principal**, onde tudo acontece (cliente cria solicitações,
+  escritório valida/processa/entrega). Também é um PWA instalável no Android
+  (manifest.json + sw.js servidos na raiz). Roda em qualquer lugar.
+- **Desktop**: PyQt5 (`main.py`, `ui/painel_worker.py`) — hoje é o **Painel do
+  Robô**, com propósito TOTALMENTE diferente da web: roda na **máquina-host**
+  (a que tem o Domínio aberto) e só OPERA a automação — liga/desliga o robô,
+  mostra a fila, o log ao vivo e os erros. Não tem login nem formulários (isso
+  é papel da web); é um quadro de controle local. Visual de "console de
+  operação" (escuro, `ui/estilo.qss`), deliberadamente distinto da web. O
+  processamento em si NÃO é reimplementado: o painel roda um `QThread` que
+  chama `scripts/worker_dominio.py::rodar_uma_rodada(log=...)` — a mesma função
+  que o worker de console (`python scripts/worker_dominio.py`) usa.
+- As duas casca compartilham o mesmo banco SQLite (`data/dp_automacao.db`) e a
   mesma lógica de negócio. **Nunca duplique lógica de negócio numa interface
   específica** — ela sempre mora em `core/`, `modules/`, `regras/` ou
   `database/`, e as interfaces só chamam essas funções.
+- **Onde roda o quê**: web e worker conversam pelo banco (não trocam mensagem
+  direto). O jeito mais simples é rodar a web E o painel/worker na própria
+  máquina-host (um só banco). Web na nuvem + worker no host exigiria um banco
+  de rede (Postgres) no lugar do SQLite — fica pra quando precisar.
 
 ## Autenticação e contas
 
-- Duas experiências, com login obrigatório (web/PWA **e** desktop PyQt5):
+- Duas experiências na **web** (o desktop/Painel do Robô não faz login):
   - **funcionário**: pessoal do escritório, acesso total (todas as
     solicitações, fila de validações e alertas).
   - **cliente**: empresa cliente, só cria e vê as **próprias** solicitações
     (filtradas por `cliente_cnpj`); não vê validações nem alertas.
 - Toda a autenticação mora em `core/usuario.py` (`Usuario.autenticar/criar`,
-  hash via werkzeug) — **web e desktop chamam a mesma função**, nunca
-  reimplementam. Sessão web é `flask.session` simples (sem flask-login).
+  hash via werkzeug) — usada pela web; a lógica de senha nunca é reimplementada.
+  Sessão web é `flask.session` simples (sem flask-login).
 - Não há autocadastro: contas são criadas pelo escritório com
   `python scripts/criar_usuario.py`.
 - Nos formulários de criação, para conta **cliente** o servidor ignora o
@@ -75,7 +89,7 @@ integracao/                  stubs propositais (Domínio via PyAutoGUI, Onvio, e
 scripts/criar_usuario.py     CLI p/ o escritório criar contas (funcionario/cliente) — único jeito de cadastrar
 utils/                       file_manager.py (organização de pastas), logger.py
 web/                         app.py (rotas Flask) + templates/ + static/ (style.css, app.js, PWA)
-ui/                          main_window.py + dialogo_login.py + telas PyQt5 + estilo.qss
+ui/                          painel_worker.py (Painel do Robô: QThread + fila + log) + estilo.qss (console escuro)
 ```
 
 ### Processamento no Domínio: automático (worker) x manual (analista)
@@ -163,14 +177,18 @@ arquivo precisa mudar.
 
 ```bash
 pip install -r requirements.txt --break-system-packages
-python web/app.py          # abre em http://localhost:5000 (dev)
-python main.py             # versão desktop
+python web/app.py          # web/PWA — abre em http://localhost:5000 (dev)
+python main.py             # Painel do Robô (desktop) — opera a automação no host
+python scripts/worker_dominio.py   # mesmo robô, versão console (sem janela)
 pytest tests/              # testes de workflow, regras CLT, tipos e prazos
 python scripts/rodar_producao.py   # produção (waitress) — defina SECRET_KEY
 ```
 
-As três versões usam o mesmo `data/dp_automacao.db`. Pra testar do zero,
-apague a pasta `data/` e `logs/`. Como há login, crie ao menos uma conta:
+Web e desktop usam o mesmo `data/dp_automacao.db`. O Painel do Robô e o worker
+de console fazem a MESMA coisa (rodam `rodar_uma_rodada`) — use o painel pra
+operar com janela/log visível, ou o console pra deixar rodando 24h no host. Pra
+testar do zero, apague a pasta `data/` e `logs/`. Como a web tem login, crie ao
+menos uma conta:
 `python scripts/criar_usuario.py` (ex: um `funcionario` e um `cliente`) —
 ou, logado como funcionário, use a página `/usuarios`.
 
@@ -191,7 +209,8 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 - ✅ Módulo de admissão (múltiplos anexos + extração básica por regex + validação CLT completa)
 - ✅ Catálogo de solicitações na web com busca em tempo real (tolerante a acento/ordem), agrupado por categoria
 - ✅ PWA mobile (Android) instalável
-- ✅ Login com dois tipos de conta (funcionário/cliente) na web e no desktop; cliente vê só o próprio CNPJ
+- ✅ Login com dois tipos de conta (funcionário/cliente) na web; cliente vê só o próprio CNPJ
+- ✅ Desktop reposicionado como **Painel do Robô** (ui/painel_worker.py): opera a automação no host (liga/desliga, fila, log ao vivo, erros); telas antigas que espelhavam a web foram removidas
 - ✅ Tema claro/escuro (segue o sistema, com toggle salvo) em todas as páginas web
 - ✅ Reprovação devolve a solicitação ao cliente para editar/reenviar ou excluir
 - ✅ Painel de solicitações ordena: não finalizadas → concluídas não vistas pelo cliente (selo "nova entrega") → concluídas já vistas; flag `visto_pelo_cliente` marcada quando o cliente dono abre o detalhe
