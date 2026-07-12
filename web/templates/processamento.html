@@ -2,41 +2,52 @@
 {% import "macros.html" as m with context %}
 {% block titulo %}Processamento · Automação DP{% endblock %}
 
-{# Card de entrega ao cliente: resumo do que foi feito + documentos gerados.
-   Usado tanto para o atendimento manual quanto para o pós-automação. #}
+{# Demanda de entrega como ACORDEÃO: fechada é só uma barra-resumo (nº, tipo,
+   cliente, prazo, status); o conteúdo (avisos + formulário de entrega) abre ao
+   clicar. <details>/<summary> nativo — funciona sem JS e com teclado. #}
 {% macro card_entrega(sol, nota) %}
-<div class="card-validacao">
-    <div class="cabecalho-validacao">
-        <div class="titulo-validacao">#{{ sol.id }} — {{ rotulo_tipo(sol.tipo) }} <span style="color:var(--text-muted); font-weight:400;">· {{ sol._row.cliente_nome or "—" }}</span></div>
+<details class="acordeao">
+    <summary class="acordeao-resumo">
+        <span class="seta" aria-hidden="true">›</span>
+        <span class="id mono">#{{ sol.id }}</span>
+        <span class="acordeao-titulo">{{ rotulo_tipo(sol.tipo) }}</span>
+        <span class="acordeao-cliente">{{ sol._row.cliente_nome or "—" }}</span>
+        {% set prazo = rotulo_prazo(sol) %}
+        {% if prazo and situacao_prazo(sol) in ('atencao', 'estourado') %}
+        <span class="selo-prazo {{ situacao_prazo(sol) }}">{{ prazo }}</span>
+        {% endif %}
+        {% if sol.dados.get('erro_automacao') %}<span class="selo-prazo estourado" title="A automação falhou nesta solicitação">falhou na automação</span>{% endif %}
         {{ m.carimbo_status(sol.status) }}
-    </div>
-    <div class="meta">
-        Funcionário: {{ sol._row.funcionario_nome or "—" }} ·
-        <a href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">ver detalhes</a>
-    </div>
-    {% if nota %}<div class="caixa-aviso" style="margin-bottom:10px;">{{ nota }}</div>{% endif %}
-    {% if sol.dados.get('erro_automacao') %}
-    <div class="caixa-aviso" style="margin-bottom:10px;">A automação falhou e caiu para manual: {{ sol.dados.get('erro_automacao') }}</div>
-    {% endif %}
-    <form method="post" action="{{ url_for('concluir_manual', solicitacao_id=sol.id) }}" enctype="multipart/form-data">
-        <div class="campo" style="margin-bottom:12px;">
-            <label for="resumo-{{ sol.id }}">O que foi feito (o cliente vai ver)</label>
-            <textarea id="resumo-{{ sol.id }}" name="resumo" placeholder="Ex: Admissão registrada no Domínio e no eSocial. Segue o contrato e o recibo.">{{ sol.dados.get('resumo_entrega', '') }}</textarea>
+    </summary>
+    <div class="acordeao-corpo">
+        <div class="meta">
+            Funcionário: {{ sol._row.funcionario_nome or "—" }} ·
+            <a href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">ver detalhes completos</a>
         </div>
-        <div class="campo" style="margin-bottom:12px;">
-            <label>Documentos processados (entregues ao cliente) <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
-            <div class="dropzone">
-                <input type="file" name="arquivos_resultado" accept=".pdf,.png,.jpg,.jpeg" multiple>
-                <div class="icone-arquivo">[ ↑ ]</div>
-                <div class="instrucao">Clique ou arraste os documentos gerados (contrato, recibo, holerite...)</div>
-                <div class="nome-arquivo"></div>
+        {% if nota %}<div class="caixa-aviso" style="margin-bottom:10px;">{{ nota }}</div>{% endif %}
+        {% if sol.dados.get('erro_automacao') %}
+        <div class="caixa-aviso" style="margin-bottom:10px;">A automação falhou e caiu para manual: {{ sol.dados.get('erro_automacao') }}</div>
+        {% endif %}
+        <form method="post" action="{{ url_for('concluir_manual', solicitacao_id=sol.id) }}" enctype="multipart/form-data">
+            <div class="campo" style="margin-bottom:12px;">
+                <label for="resumo-{{ sol.id }}">O que foi feito (o cliente vai ver)</label>
+                <textarea id="resumo-{{ sol.id }}" name="resumo" placeholder="Ex: Admissão registrada no Domínio e no eSocial. Segue o contrato e o recibo.">{{ sol.dados.get('resumo_entrega', '') }}</textarea>
             </div>
-        </div>
-        <div class="acoes-validacao">
-            <button type="submit" class="btn btn-sucesso">✓ Concluir e entregar ao cliente</button>
-        </div>
-    </form>
-</div>
+            <div class="campo" style="margin-bottom:12px;">
+                <label>Documentos processados (entregues ao cliente) <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+                <div class="dropzone">
+                    <input type="file" name="arquivos_resultado" accept=".pdf,.png,.jpg,.jpeg" multiple>
+                    <div class="icone-arquivo">[ ↑ ]</div>
+                    <div class="instrucao">Clique ou arraste os documentos gerados (contrato, recibo, holerite...)</div>
+                    <div class="nome-arquivo"></div>
+                </div>
+            </div>
+            <div class="acoes-validacao">
+                <button type="submit" class="btn btn-sucesso">✓ Concluir e entregar ao cliente</button>
+            </div>
+        </form>
+    </div>
+</details>
 {% endmacro %}
 
 {% block conteudo %}
