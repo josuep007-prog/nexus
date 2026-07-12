@@ -35,7 +35,10 @@ from config import BLOCO_1, BLOCO_2, TIPOS_BLOCO_2
 from database.db_manager import inicializar_banco
 from database import db_manager
 from core.solicitacao import Solicitacao
-from core.usuario import Usuario, TIPO_FUNCIONARIO, TIPO_CLIENTE
+from core.usuario import (
+    Usuario, TIPO_FUNCIONARIO, TIPO_CLIENTE, TIPO_GESTOR, TIPO_ADMIN,
+    TIPOS_ESCRITORIO, NIVEL_FUNCIONARIO, NIVEL_GESTOR, NIVEL_ADMIN, ROTULO_PAPEL,
+)
 from core.workflow import StatusBloco1, StatusBloco2, REPROVADA
 from core.tipos_solicitacao import schema_do_tipo, catalogo_completo, catalogo_por_categoria
 from modules.bloco1 import recebimento as bloco1_recebimento
@@ -66,12 +69,23 @@ backup_util.fazer_backup_diario()  # cópia diária do banco (com rotação) ao 
 # (404) para contas do tipo cliente.
 # ---------------------------------------------------------------------------
 ROTAS_PUBLICAS = {"login", "manifest", "service_worker", "static"}
-ROTAS_SOMENTE_FUNCIONARIO = {"validacoes", "decidir_validacao", "alertas", "resolver_alerta",
-                             "processamento", "concluir_manual",
-                             "usuarios", "criar_usuario_web", "alternar_usuario_ativo",
-                             "resetar_senha_usuario", "salvar_email_usuario",
-                             "adicionar_empresa", "remover_empresa",
-                             "relatorios", "obrigacoes", "marcar_obrigacao_web"}
+
+# Nível mínimo de acesso por rota (escada do escritório). Cliente (nível 0) não
+# entra em nenhuma destas. Rotas fora do mapa exigem só estar logado.
+#   1 = funcionário+  ·  2 = gestor+  ·  3 = admin
+ROTAS_NIVEL_MINIMO = {
+    # Operacional — qualquer um da equipe do escritório
+    "validacoes": NIVEL_FUNCIONARIO, "decidir_validacao": NIVEL_FUNCIONARIO,
+    "processamento": NIVEL_FUNCIONARIO, "concluir_manual": NIVEL_FUNCIONARIO,
+    "alertas": NIVEL_FUNCIONARIO, "resolver_alerta": NIVEL_FUNCIONARIO,
+    "obrigacoes": NIVEL_FUNCIONARIO, "marcar_obrigacao_web": NIVEL_FUNCIONARIO,
+    # Gerencial — gestor e admin
+    "relatorios": NIVEL_GESTOR,
+    "usuarios": NIVEL_GESTOR, "criar_usuario_web": NIVEL_GESTOR,
+    "alternar_usuario_ativo": NIVEL_GESTOR, "resetar_senha_usuario": NIVEL_GESTOR,
+    "salvar_email_usuario": NIVEL_GESTOR, "adicionar_empresa": NIVEL_GESTOR,
+    "remover_empresa": NIVEL_GESTOR,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -106,8 +120,11 @@ def exigir_login():
         # Conta apagada/ID inválido na sessão: força novo login.
         session.clear()
         return redirect(url_for("login"))
-    # Rotas internas do escritório não existem para o cliente (404, não 403).
-    if request.endpoint in ROTAS_SOMENTE_FUNCIONARIO and not g.usuario.eh_funcionario:
+    # Gate por nível: cada rota interna exige um nível mínimo. Quem não alcança
+    # (cliente numa rota do escritório, funcionário numa rota gerencial) recebe
+    # 404 — não revela a existência da rota.
+    nivel_min = ROTAS_NIVEL_MINIMO.get(request.endpoint)
+    if nivel_min and g.usuario.nivel < nivel_min:
         abort(404)
 
 
@@ -999,7 +1016,19 @@ def conta():
 @app.route("/usuarios")
 def usuarios():
     lista = [Usuario(u) for u in db_manager.listar_usuarios()]
-    return render_template("usuarios.html", usuarios=lista)
+    # Só o admin pode criar/gerir contas do ESCRITÓRIO; o gestor gere só clientes.
+    return render_template("usuarios.html", usuarios=lista, pode_gerir_equipe=g.usuario.eh_admin)
+
+
+def _gerir_conta_ou_abortar(alvo_row):
+    """Bloqueia (404) se o usuário logado não pode gerir a conta-alvo.
+
+    Gestor gere contas de cliente; contas do escritório só o admin mexe.
+    """
+    if alvo_row is None:
+        abort(404)
+    if not g.usuario.pode_gerir(alvo_row["tipo_conta"]):
+        abort(404)
 
 
 @app.route("/usuarios/criar", methods=["POST"])
@@ -1013,6 +1042,9 @@ def criar_usuario_web():
     try:
         if not login_novo or not senha or not nome:
             raise ValueError("Preencha login, senha e nome.")
+        # Gestor só cria cliente; conta do escritório (funcionário/gestor/admin) exige admin.
+        if not g.usuario.pode_gerir(tipo):
+            raise ValueError("Você não tem permissão para criar esse tipo de conta.")
         novo = Usuario.criar(login_novo, senha, tipo, nome,
                              cliente_cnpj=cnpj if tipo == TIPO_CLIENTE else None)
         if email:
@@ -1028,8 +1060,7 @@ def criar_usuario_web():
 @app.route("/usuarios/<int:usuario_id>/ativo", methods=["POST"])
 def alternar_usuario_ativo(usuario_id):
     alvo = db_manager.buscar_usuario_por_id(usuario_id)
-    if alvo is None:
-        abort(404)
+    _gerir_conta_ou_abortar(alvo)
     if usuario_id == g.usuario.id:
         flash("Você não pode desativar a própria conta.", "erro")
         return redirect(url_for("usuarios"))
@@ -1040,6 +1071,8 @@ def alternar_usuario_ativo(usuario_id):
 
 @app.route("/usuarios/<int:usuario_id>/resetar-senha", methods=["POST"])
 def resetar_senha_usuario(usuario_id):
+    alvo_row = db_manager.buscar_usuario_por_id(usuario_id)
+    _gerir_conta_ou_abortar(alvo_row)
     try:
         alvo = Usuario.carregar(usuario_id)
         alvo.redefinir_senha(request.form.get("senha_nova", ""))
@@ -1051,8 +1084,7 @@ def resetar_senha_usuario(usuario_id):
 
 @app.route("/usuarios/<int:usuario_id>/email", methods=["POST"])
 def salvar_email_usuario(usuario_id):
-    if db_manager.buscar_usuario_por_id(usuario_id) is None:
-        abort(404)
+    _gerir_conta_ou_abortar(db_manager.buscar_usuario_por_id(usuario_id))
     db_manager.atualizar_email_usuario(usuario_id, request.form.get("email", "").strip())
     flash("E-mail atualizado.", "sucesso")
     return redirect(url_for("usuarios"))

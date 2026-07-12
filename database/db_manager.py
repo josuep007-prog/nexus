@@ -170,6 +170,22 @@ def inicializar_banco():
         if "email" not in cols_usuarios:
             conn.execute("ALTER TABLE usuarios ADD COLUMN email TEXT")
 
+        # Bootstrap de papéis: com a chegada de gestor/administrador, garanta que
+        # SEMPRE exista ao menos um administrador — senão ninguém gerencia a
+        # equipe do escritório. Se não houver admin mas houver funcionários,
+        # promove o 'administrador' (se existir) ou o funcionário mais antigo.
+        tem_admin = conn.execute(
+            "SELECT 1 FROM usuarios WHERE tipo_conta = 'administrador' LIMIT 1"
+        ).fetchone()
+        if not tem_admin:
+            alvo = conn.execute(
+                "SELECT id FROM usuarios WHERE tipo_conta = 'funcionario' AND login = 'administrador' LIMIT 1"
+            ).fetchone() or conn.execute(
+                "SELECT id FROM usuarios WHERE tipo_conta = 'funcionario' ORDER BY id LIMIT 1"
+            ).fetchone()
+            if alvo:
+                conn.execute("UPDATE usuarios SET tipo_conta = 'administrador' WHERE id = ?", (alvo["id"],))
+
 
 # ---------------------------------------------------------------------------
 # Funções auxiliares de CRUD - solicitações

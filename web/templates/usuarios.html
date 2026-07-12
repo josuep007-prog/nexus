@@ -23,11 +23,16 @@
             <input type="text" id="nc-senha" name="senha" required autocomplete="off">
         </div>
         <div class="campo">
-            <label for="nc-tipo">Tipo</label>
+            <label for="nc-tipo">Tipo de conta</label>
             <select id="nc-tipo" name="tipo_conta"
                     onchange="document.getElementById('campo-cnpj').style.display = this.value === 'cliente' ? '' : 'none'">
                 <option value="cliente">Cliente</option>
-                <option value="funcionario">Funcionário</option>
+                {# Contas do escritório (com níveis de acesso) só o admin pode criar #}
+                {% if pode_gerir_equipe %}
+                <option value="funcionario">Funcionário do escritório</option>
+                <option value="gestor">Gestor do departamento</option>
+                <option value="administrador">Administrador master</option>
+                {% endif %}
             </select>
         </div>
         <div class="campo">
@@ -69,7 +74,7 @@
                         {% if not u._row.ativo %}<span class="tag-vista">desativada</span>{% endif %}
                     </div>
                     <div class="meta-usuario">
-                        {{ 'Funcionário do escritório' if u.eh_funcionario else 'Cliente' }}
+                        <span class="papel-badge papel-{{ u.tipo_conta }}">{{ u.papel }}</span>
                         {% if u.cliente_cnpj %} · <span class="mono">{{ u.cliente_cnpj }}</span>{% endif %}
                         {% if u.email %} · {{ u.email }}{% endif %}
                     </div>
@@ -87,6 +92,10 @@
             </div>
             {% endif %}
 
+            {# Contas do escritório (funcionário/gestor/admin) só o admin gerencia;
+               o gestor gere apenas contas de cliente. #}
+            {% set pode_gerir = u.eh_cliente or pode_gerir_equipe %}
+            {% if pode_gerir %}
             <div class="acoes-usuario">
                 <form method="post" action="{{ url_for('resetar_senha_usuario', usuario_id=u.id) }}">
                     <input type="text" name="senha_nova" placeholder="nova senha" autocomplete="off">
@@ -111,6 +120,7 @@
                 </form>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>

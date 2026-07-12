@@ -45,16 +45,39 @@ em vez de propor uma abordagem do zero.
 
 ## Autenticação e contas
 
-- Duas experiências na **web** (o desktop/Painel do Robô não faz login):
-  - **funcionário**: pessoal do escritório, acesso total (todas as
-    solicitações, fila de validações e alertas).
-  - **cliente**: empresa cliente, só cria e vê as **próprias** solicitações
-    (filtradas por `cliente_cnpj`); não vê validações nem alertas.
+- **Quatro papéis**, um deles cliente e três formando uma ESCADA de acesso no
+  escritório (cada nível faz tudo do de baixo). Constantes e níveis em
+  `core/usuario.py` (`TIPO_CLIENTE/FUNCIONARIO/GESTOR/ADMIN`, `NIVEIS`,
+  `NIVEL_FUNCIONARIO=1/GESTOR=2/ADMIN=3`):
+  - **cliente** (nível 0): empresa cliente, só cria/vê as **próprias**
+    solicitações (por `cliente_cnpj`); não vê validações/alertas. (não é
+    parte da escada do escritório — o desktop/Painel do Robô não faz login.)
+  - **funcionário** (1): operacional — recebe, valida, processa, entrega,
+    alertas e obrigações.
+  - **gestor** (2): funcionário **+ relatórios/produtividade + gestão de
+    contas de CLIENTE** (onboarding, reset de senha, empresas extras).
+  - **administrador** (3): tudo **+ gestão de contas do ESCRITÓRIO**
+    (criar/desativar/redefinir funcionário/gestor/admin) e configurações.
+- Propriedades em `Usuario`: `nivel`, `papel` (rótulo), `eh_cliente`,
+  `eh_funcionario` (= é da equipe, QUALQUER nível — usado nos gates gerais
+  "escritório x cliente"), `eh_gestor` (nível ≥ 2), `eh_admin`, e
+  `pode_gerir(tipo_alvo)` (regra central: gestor gere cliente; só admin mexe
+  em conta do escritório — impede um gestor se promover).
+- **Gate de acesso** (`web/app.py::exigir_login`): `ROTAS_NIVEL_MINIMO` mapeia
+  cada rota interna ao nível mínimo; quem não alcança recebe 404. As rotas de
+  gestão de contas ainda checam o ALVO por ação (`_gerir_conta_ou_abortar`,
+  `criar_usuario_web`) — defesa no servidor, não só na UI. A página `/usuarios`
+  recebe `pode_gerir_equipe = eh_admin` (mostra/oculta criação de contas do
+  escritório e as ações sobre elas).
+- **Bootstrap** (`database/db_manager.py::inicializar_banco`): garante que
+  sempre exista ao menos um `administrador` — se não houver, promove a conta
+  de login `administrador` (ou o funcionário mais antigo). Evita ficar sem
+  ninguém que gerencie a equipe ao migrar bancos antigos (2 papéis → 4).
 - Toda a autenticação mora em `core/usuario.py` (`Usuario.autenticar/criar`,
   hash via werkzeug) — usada pela web; a lógica de senha nunca é reimplementada.
   Sessão web é `flask.session` simples (sem flask-login).
-- Não há autocadastro: contas são criadas pelo escritório com
-  `python scripts/criar_usuario.py`.
+- Contas são criadas por gestor/admin na web (`/usuarios`) ou via
+  `python scripts/criar_usuario.py` (útil pro 1º admin). Não há autocadastro.
 - Nos formulários de criação, para conta **cliente** o servidor ignora o
   `cliente_cnpj`/`cliente_nome` enviados e usa os da conta logada (impede
   abrir solicitação em nome de outra empresa). Detalhe e download de anexo

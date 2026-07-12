@@ -106,6 +106,9 @@
                 <a href="{{ url_for('obrigacoes') }}" class="{{ 'ativo' if request.endpoint == 'obrigacoes' else '' }}">
                     {{ icone('calendario') }}<span class="nav-rotulo">Obrigações</span>
                 </a>
+                {% endif %}
+                {# Gerencial: só gestor e admin veem relatórios e gestão de usuários #}
+                {% if usuario_logado and usuario_logado.eh_gestor %}
                 <a href="{{ url_for('relatorios') }}" class="{{ 'ativo' if request.endpoint == 'relatorios' else '' }}">
                     {{ icone('grafico') }}<span class="nav-rotulo">Relatórios</span>
                 </a>
@@ -135,7 +138,7 @@
                     <span class="avatar">{{ usuario_logado.nome_exibicao[:1]|upper }}</span>
                     <div style="min-width:0;">
                         <span class="nome">{{ usuario_logado.nome_exibicao }}</span>
-                        <span class="papel">{{ 'Escritório' if usuario_logado.eh_funcionario else 'Cliente' }}</span>
+                        <span class="papel">{{ usuario_logado.papel }}</span>
                     </div>
                 </div>
                 {% endif %}

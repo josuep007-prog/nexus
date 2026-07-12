@@ -22,8 +22,35 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from database import db_manager
 
 
-TIPO_FUNCIONARIO = "funcionario"
 TIPO_CLIENTE = "cliente"
+TIPO_FUNCIONARIO = "funcionario"
+TIPO_GESTOR = "gestor"
+TIPO_ADMIN = "administrador"
+
+# Papéis do escritório (tudo que não é cliente). Formam uma ESCADA de acesso:
+# cada nível faz tudo do de baixo, e mais um pouco.
+TIPOS_ESCRITORIO = (TIPO_FUNCIONARIO, TIPO_GESTOR, TIPO_ADMIN)
+TIPOS_VALIDOS = (TIPO_CLIENTE,) + TIPOS_ESCRITORIO
+
+# Nível numérico de acesso (usado nos gates de rota/ação).
+NIVEL_CLIENTE = 0
+NIVEL_FUNCIONARIO = 1
+NIVEL_GESTOR = 2
+NIVEL_ADMIN = 3
+NIVEIS = {
+    TIPO_CLIENTE: NIVEL_CLIENTE,
+    TIPO_FUNCIONARIO: NIVEL_FUNCIONARIO,
+    TIPO_GESTOR: NIVEL_GESTOR,
+    TIPO_ADMIN: NIVEL_ADMIN,
+}
+
+# Rótulos amigáveis para exibir na interface.
+ROTULO_PAPEL = {
+    TIPO_CLIENTE: "Cliente",
+    TIPO_FUNCIONARIO: "Funcionário do escritório",
+    TIPO_GESTOR: "Gestor do departamento",
+    TIPO_ADMIN: "Administrador master",
+}
 
 
 class Usuario:
@@ -55,12 +82,12 @@ class Usuario:
         Usado pelo script de provisionamento (scripts/criar_usuario.py), já que
         não há autocadastro — as contas são criadas manualmente pelo escritório.
         """
-        if tipo_conta not in (TIPO_FUNCIONARIO, TIPO_CLIENTE):
-            raise ValueError(f"Tipo de conta inválido: '{tipo_conta}'. Use '{TIPO_FUNCIONARIO}' ou '{TIPO_CLIENTE}'.")
+        if tipo_conta not in TIPOS_VALIDOS:
+            raise ValueError(f"Tipo de conta inválido: '{tipo_conta}'. Use um de: {', '.join(TIPOS_VALIDOS)}.")
         if tipo_conta == TIPO_CLIENTE and not cliente_cnpj:
             raise ValueError("Contas do tipo 'cliente' exigem cliente_cnpj.")
-        if tipo_conta == TIPO_FUNCIONARIO and cliente_cnpj:
-            raise ValueError("Contas do tipo 'funcionario' não devem ter cliente_cnpj.")
+        if tipo_conta != TIPO_CLIENTE and cliente_cnpj:
+            raise ValueError("Contas do escritório (funcionário/gestor/administrador) não têm cliente_cnpj.")
         senha_hash = generate_password_hash(senha)
         novo_id = db_manager.criar_usuario(login, senha_hash, tipo_conta, nome_exibicao, cliente_cnpj)
         return cls.carregar(novo_id)
@@ -91,12 +118,47 @@ class Usuario:
         return self._row.get("email")
 
     @property
-    def eh_funcionario(self):
-        return self.tipo_conta == TIPO_FUNCIONARIO
+    def nivel(self):
+        """Nível numérico de acesso: 0 cliente, 1 funcionário, 2 gestor, 3 admin."""
+        return NIVEIS.get(self.tipo_conta, 0)
+
+    @property
+    def papel(self):
+        """Rótulo amigável do papel (ex.: 'Gestor do departamento')."""
+        return ROTULO_PAPEL.get(self.tipo_conta, self.tipo_conta)
 
     @property
     def eh_cliente(self):
         return self.tipo_conta == TIPO_CLIENTE
+
+    @property
+    def eh_funcionario(self):
+        """É da EQUIPE do escritório (qualquer nível: funcionário, gestor ou admin).
+        Continua sendo o 'é do escritório x é cliente' usado nos gates gerais."""
+        return self.tipo_conta in TIPOS_ESCRITORIO
+
+    @property
+    def eh_gestor(self):
+        """Gestor OU administrador (nível gerencial: relatórios, gestão de clientes)."""
+        return self.nivel >= NIVEL_GESTOR
+
+    @property
+    def eh_admin(self):
+        """Administrador master: gestão de contas do escritório e configurações."""
+        return self.tipo_conta == TIPO_ADMIN
+
+    def pode_gerir(self, alvo_tipo_conta):
+        """Regra central: este usuário pode criar/editar uma conta do tipo alvo?
+
+        - Gestor+ gerencia contas de CLIENTE (onboarding, senha, empresas).
+        - Só ADMIN mexe em contas do escritório (funcionário/gestor/admin) —
+          impede que um gestor crie outro gestor/admin e se promova.
+        """
+        if self.nivel < NIVEL_GESTOR:
+            return False
+        if alvo_tipo_conta == TIPO_CLIENTE:
+            return True
+        return self.eh_admin
 
     # -- várias empresas por conta cliente (grupo econômico / filiais) ----
     def empresas_extras(self):
