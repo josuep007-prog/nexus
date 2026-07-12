@@ -14,9 +14,9 @@
         <span class="acordeao-cliente">{{ sol._row.cliente_nome or "—" }}</span>
         {% set prazo = rotulo_prazo(sol) %}
         {% if prazo and situacao_prazo(sol) in ('atencao', 'estourado') %}
-        <span class="selo-prazo {{ situacao_prazo(sol) }}">{{ prazo }}</span>
+        <span class="tag-prazo {{ situacao_prazo(sol) }}">⏱ {{ prazo }}</span>
         {% endif %}
-        {% if sol.dados.get('erro_automacao') %}<span class="selo-prazo estourado" title="A automação falhou nesta solicitação">falhou na automação</span>{% endif %}
+        {% if sol.dados.get('erro_automacao') %}<span class="selo-alerta" title="A automação falhou nesta solicitação">falhou na automação</span>{% endif %}
         {{ m.carimbo_status(sol.status) }}
     </summary>
     <div class="acordeao-corpo">
