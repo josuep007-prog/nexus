@@ -26,14 +26,20 @@ jeito, bastando definir a FIELD_ORDER de cada tela.
 import re
 import time
 
+# pyautogui/keyboard controlam mouse/teclado da tela real — só fazem sentido no
+# PC-host com o Domínio aberto. Importamos com guarda LARGA (Exception, não só
+# ImportError) de propósito: em ambiente headless (servidor/nuvem, sem DISPLAY),
+# o pyautogui está até instalado, mas quebra ao abrir a tela durante o import
+# (ex.: KeyError: 'DISPLAY'). Assim o app web sobe do mesmo jeito e a RPA degrada
+# graciosamente — quem chama já trata `pyautogui is None`/erro sem quebrar o fluxo.
 try:
     import pyautogui
-except ImportError:
+except Exception:
     pyautogui = None
 
 try:
     import keyboard
-except ImportError:
+except Exception:
     keyboard = None
 
 
