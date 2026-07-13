@@ -1,37 +1,46 @@
 """
 integracao/dominio_rpa.py
 ----------------------------
-Ponte entre o sistema e o Domínio (Sysdata), via automação de tela (PyAutoGUI).
+Automação de tela do Domínio (Sysdata) por teclado, usando PyAutoGUI.
 
-`preencher_admissao` foi portado do projeto DominioAutoFill
-(C:\\Users\\JOSUE\\Desktop\\DominioAutoFill\\dominio_auto_fill.py::fill_dominio_form) —
-mesma técnica já validada lá: navegação por TAB entre campos + digitação
-sequencial (`pyautogui.press("tab")` + `pyautogui.typewrite(...)`), sem
-depender de coordenadas de tela fixas (que quebram com resolução/zoom
-diferentes). Pré-requisito de uso é o mesmo do DominioAutoFill: o Domínio
-precisa já estar aberto, logado, em primeiro plano e na tela/aba correta
-antes de chamar qualquer `preencher_*` — não há automação de login aqui.
+Como funciona
+=============
+Cada tela do Domínio é descrita por um ROTEIRO: uma lista de PASSOS na ordem
+exata em que um humano os executaria. O motor `_executar_roteiro` percorre o
+roteiro e, para cada passo, digita um valor da solicitação, digita um texto
+fixo, pressiona uma tecla (TAB/ENTER/setas...) ou espera a tela reagir.
 
-⚠️ A ordem em FIELD_ORDER_ADMISSAO foi montada a partir de
-CAMPOS_MINIMOS_ADMISSAO (regras/regras_clt.py), não de um teste na tela real
-de admissão do Domínio. Confirme/ajuste essa ordem (e os formatadores de
-data/salário) contra a tela real antes de usar em produção.
+Diferente de uma abordagem "campo = TAB + digita", aqui a NAVEGAÇÃO é
+explícita: quem descreve a tela diz quando dá TAB, quando confirma com ENTER,
+quando abre uma janela e precisa esperar. Isso deixa o roteiro fiel à tela
+real (e fácil de ajustar) em vez de assumir um layout.
 
-As demais funções (`preencher_ferias`, `preencher_rescisao`,
-`preencher_alteracao_cadastral`, `cadastrar_feriado`) continuam como stub —
-quando for a vez delas, dá pra reaproveitar `_preencher_campos()` do mesmo
-jeito, bastando definir a FIELD_ORDER de cada tela.
+Pré-requisitos de uso (não há automação de login/abertura aqui):
+  - o Domínio já está aberto, logado e em primeiro plano;
+  - a tela/aba correta já está na frente antes de chamar qualquer `preencher_*`.
+
+Por isso este módulo só roda no PC-host (a máquina com o Domínio); em servidor/
+nuvem sem tela, os imports abaixo falham e tudo degrada graciosamente — quem
+chama (modules/fila_processamento.py) já trata `NotImplementedError`/erro e
+devolve a solicitação para atendimento manual, sem quebrar o fluxo.
+
+Calibração
+==========
+Os ROTEIRO_* nascem VAZIOS de propósito: a ordem de campos de cada tela precisa
+ser transcrita da tela real do Domínio, não adivinhada. Enquanto um roteiro
+estiver vazio, a função da tela levanta NotImplementedError (e a solicitação
+vai para o manual). Para ligar uma tela, preencha o ROTEIRO_* dela com os
+passos correspondentes — os helpers `campo/texto/tecla/pausa` montam cada passo.
 """
 
 import re
 import time
 
 # pyautogui/keyboard controlam mouse/teclado da tela real — só fazem sentido no
-# PC-host com o Domínio aberto. Importamos com guarda LARGA (Exception, não só
-# ImportError) de propósito: em ambiente headless (servidor/nuvem, sem DISPLAY),
-# o pyautogui está até instalado, mas quebra ao abrir a tela durante o import
-# (ex.: KeyError: 'DISPLAY'). Assim o app web sobe do mesmo jeito e a RPA degrada
-# graciosamente — quem chama já trata `pyautogui is None`/erro sem quebrar o fluxo.
+# PC-host com o Domínio aberto. Guarda LARGA (Exception, não só ImportError) de
+# propósito: em ambiente headless (servidor/nuvem, sem DISPLAY), o pyautogui
+# pode estar instalado mas quebra ao abrir a tela durante o import
+# (ex.: KeyError: 'DISPLAY'). Assim o app web sobe do mesmo jeito.
 try:
     import pyautogui
 except Exception:
@@ -44,143 +53,236 @@ except Exception:
 
 
 class AutomacaoCancelada(Exception):
-    """Levantada quando o usuário pressiona ESC durante o preenchimento."""
+    """Levantada quando o operador pressiona ESC durante o preenchimento."""
 
 
-DELAY_ENTRE_CAMPOS = 0.5   # segundos - mesmo padrão (500ms) do DominioAutoFill
-DELAY_ENTRE_TECLAS = 0.05  # segundos por caractere digitado
-ATRASO_INICIAL = 3         # segundos de espera antes de começar (tempo de focar o Domínio)
+# --- Ritmo da digitação (ajuste conforme a máquina-host responde) ---------
+PAUSA_FOCO_INICIAL = 3.0    # espera antes do 1º passo (tempo de focar o Domínio)
+PAUSA_ENTRE_PASSOS = 0.4    # respiro entre um passo e o seguinte
+INTERVALO_POR_TECLA = 0.05  # atraso por caractere digitado (typewrite)
 
+
+# ==========================================================================
+# Vocabulário de passos
+# --------------------------------------------------------------------------
+# Cada passo é uma tupla (acao, *args). Os helpers abaixo constroem os passos
+# de forma legível para montar um ROTEIRO. O motor `_executar_roteiro` sabe
+# executar cada `acao`.
+# ==========================================================================
+
+def campo(chave: str, formatador=None, rotulo: str = None):
+    """Digita o valor de `dados[chave]` no campo atualmente focado.
+
+    Se o valor estiver vazio, o passo não digita nada (não navega sozinho —
+    a navegação é sempre explícita via `tecla`). `formatador` transforma o
+    valor antes de digitar (ex.: data/salário no formato do Domínio).
+    """
+    return ("campo", chave, formatador, rotulo or chave)
+
+
+def texto(valor: str):
+    """Digita um texto fixo (ex.: um código de menu do Domínio)."""
+    return ("texto", valor)
+
+
+def tecla(nome: str, vezes: int = 1):
+    """Pressiona uma tecla `vezes` vezes (ex.: tecla('tab'), tecla('enter'))."""
+    return ("tecla", nome, vezes)
+
+
+def pausa(segundos: float):
+    """Espera a tela reagir (ex.: uma janela que abre depois de um ENTER)."""
+    return ("pausa", segundos)
+
+
+# ==========================================================================
+# Formatadores (formatos que o Domínio espera)
+# ==========================================================================
+
+def formatar_data_br(valor: str) -> str:
+    """'AAAA-MM-DD' (input date do formulário web) -> 'DD/MM/AAAA'.
+
+    Se já vier em DD/MM/AAAA (ex.: extraído por OCR), devolve como está.
+    """
+    if not valor:
+        return ""
+    texto_valor = str(valor)
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", texto_valor)
+    if m:
+        ano, mes, dia = m.groups()
+        return f"{dia}/{mes}/{ano}"
+    return texto_valor
+
+
+def formatar_valor_br(valor) -> str:
+    """Número (1500.5) -> '1.500,50'. Se já vier com vírgula, mantém."""
+    texto_valor = str(valor).strip()
+    if "," in texto_valor:
+        return texto_valor
+    try:
+        numero = float(texto_valor)
+    except (TypeError, ValueError):
+        return texto_valor
+    inteiro, centavos = f"{numero:.2f}".split(".")
+    milhar = re.sub(r"(?<=\d)(?=(\d{3})+$)", ".", inteiro)
+    return f"{milhar},{centavos}"
+
+
+# ==========================================================================
+# Motor de execução
+# ==========================================================================
 
 def _checar_cancelamento():
-    """Aborta o preenchimento se o usuário pressionar ESC (mesmo atalho do DominioAutoFill)."""
+    """Aborta o preenchimento se o operador pressionar ESC."""
     if keyboard is None:
         return
     try:
         if keyboard.is_pressed("esc"):
-            raise AutomacaoCancelada("Preenchimento cancelado pelo usuário (ESC).")
+            raise AutomacaoCancelada("Preenchimento cancelado pelo operador (ESC).")
     except AutomacaoCancelada:
         raise
     except Exception:
-        pass  # sem permissão para hook global de teclado - segue sem suporte a ESC
+        pass  # sem permissão para hook global de teclado — segue sem suporte a ESC
 
 
-def _formatar_data_br(valor: str) -> str:
-    """Converte 'AAAA-MM-DD' (<input type=date> do formulário web) para 'DD/MM/AAAA'."""
-    if not valor:
-        return ""
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", str(valor))
-    if m:
-        ano, mes, dia = m.groups()
-        return f"{dia}/{mes}/{ano}"
-    return str(valor)  # já deve estar em DD/MM/AAAA (ex: vindo da extração OCR)
+def _exigir_roteiro(nome_tela: str, roteiro: list):
+    """Garante que a tela já foi calibrada; senão, sinaliza indisponível.
 
-
-def _formatar_salario_br(valor) -> str:
-    """Converte número (1500.5) em '1.500,50'. Se já vier com vírgula (ex: extraído por OCR), mantém."""
-    texto = str(valor).strip()
-    if "," in texto:
-        return texto
-    try:
-        numero = float(texto)
-    except ValueError:
-        return texto
-    formatado_us = f"{numero:,.2f}"  # "1,500.00"
-    return formatado_us.replace(",", "X").replace(".", ",").replace("X", ".")  # "1.500,00"
-
-
-def _preencher_campos(dados: dict, ordem: list, delay: float = DELAY_ENTRE_CAMPOS) -> dict:
+    NotImplementedError é o contrato esperado por fila_processamento: a
+    solicitação cai para atendimento manual, sem registrar como erro de RPA.
     """
-    Motor genérico de preenchimento: navega com TAB e digita cada valor, na
-    ordem informada. Mesmo mecanismo do DominioAutoFill.
+    if not roteiro:
+        raise NotImplementedError(
+            f"Tela '{nome_tela}' ainda não calibrada: descreva a ordem dos "
+            f"campos da tela real do Domínio para preencher ROTEIRO_{nome_tela.upper()}."
+        )
 
-    `ordem` é uma lista de tuplas (chave_em_dados, rotulo_pro_log, formatador_ou_None).
+
+def _executar_roteiro(dados: dict, roteiro: list) -> dict:
+    """Executa um roteiro de passos na tela do Domínio já em primeiro plano.
+
+    Retorna um relatório (vira `resultado_dominio` na solicitação) com os
+    campos digitados e os que ficaram vazios.
     """
     if pyautogui is None:
-        raise RuntimeError("pyautogui não está instalado (pip install pyautogui).")
+        raise RuntimeError(
+            "pyautogui indisponível neste ambiente (só roda no PC-host com tela)."
+        )
 
     pyautogui.FAILSAFE = False
-    time.sleep(ATRASO_INICIAL)
+    time.sleep(PAUSA_FOCO_INICIAL)
 
-    preenchidos, pulados = [], []
-    for data_key, rotulo, formatador in ordem:
+    preenchidos, vazios = [], []
+    for passo in roteiro:
         _checar_cancelamento()
+        acao = passo[0]
 
-        valor = dados.get(data_key)
-        if not valor:
-            pulados.append(rotulo)
-            pyautogui.press("tab")
-            time.sleep(delay)
-            continue
+        if acao == "campo":
+            _, chave, formatador, rotulo = passo
+            valor = dados.get(chave)
+            if not valor:
+                vazios.append(rotulo)
+                continue
+            valor = formatador(valor) if formatador else str(valor)
+            pyautogui.typewrite(valor, interval=INTERVALO_POR_TECLA)
+            preenchidos.append(rotulo)
 
-        valor_formatado = formatador(valor) if formatador else str(valor)
+        elif acao == "texto":
+            pyautogui.typewrite(passo[1], interval=INTERVALO_POR_TECLA)
 
-        pyautogui.press("tab")
-        time.sleep(delay)
-        pyautogui.typewrite(valor_formatado, interval=DELAY_ENTRE_TECLAS)
-        time.sleep(delay)
-        preenchidos.append(rotulo)
+        elif acao == "tecla":
+            _, nome, vezes = passo
+            pyautogui.press(nome, presses=vezes)
 
-    return {"sucesso": True, "campos_preenchidos": preenchidos, "campos_pulados": pulados}
+        elif acao == "pausa":
+            time.sleep(passo[1])
+            continue  # a própria pausa já é o respiro
+
+        else:
+            raise ValueError(f"Passo desconhecido no roteiro: {acao!r}")
+
+        time.sleep(PAUSA_ENTRE_PASSOS)
+
+    return {"sucesso": True, "campos_preenchidos": preenchidos, "campos_vazios": vazios}
 
 
-FIELD_ORDER_ADMISSAO = [
-    # (chave em `dados`, rótulo pro log, formatador ou None para texto puro)
-    ("nome_completo", "Nome", None),
-    ("cpf", "CPF", None),
-    ("pis_nis", "PIS/PASEP", None),
-    ("data_nascimento", "Data de Nascimento", _formatar_data_br),
-    ("data_admissao", "Data de Admissão", _formatar_data_br),
-    ("cargo", "Cargo", None),
-    ("salario", "Salário", _formatar_salario_br),
-    ("ctps_numero", "Número CTPS", None),
-    ("ctps_serie", "Série CTPS", None),
-    ("banco", "Banco", None),
-    ("agencia", "Agência", None),
-    ("conta", "Conta", None),
-]
+# ==========================================================================
+# Roteiros por tela — VAZIOS até serem transcritos da tela real
+# --------------------------------------------------------------------------
+# Chaves disponíveis em `dados` para a admissão (fonte: regras/regras_clt.py
+# CAMPOS_MINIMOS_ADMISSAO): nome_completo, cpf, pis_nis, data_nascimento,
+# data_admissao, cargo, departamento, salario, horario_trabalho, ctps_numero,
+# ctps_serie, banco, agencia, conta.
+#
+# Exemplo de como um roteiro fica depois de calibrado (ILUSTRATIVO — a ordem/
+# navegação reais dependem da tela do Domínio; NÃO é a ordem verdadeira):
+#     ROTEIRO_ADMISSAO = [
+#         campo("nome_completo", rotulo="Nome"),
+#         tecla("tab"),
+#         campo("cpf", rotulo="CPF"),
+#         tecla("tab"),
+#         campo("data_admissao", formatar_data_br, "Admissão"),
+#         tecla("enter"), pausa(1.0),           # confirma e espera abrir a aba
+#         campo("salario", formatar_valor_br, "Salário"),
+#     ]
+# ==========================================================================
 
+ROTEIRO_ADMISSAO = []
+ROTEIRO_FERIAS = []
+ROTEIRO_RESCISAO = []
+ROTEIRO_ALTERACAO_CADASTRAL = []
+
+
+# ==========================================================================
+# Telas (o que fila_processamento aciona)
+# ==========================================================================
+
+def preencher_admissao(dados: dict) -> dict:
+    _exigir_roteiro("admissao", ROTEIRO_ADMISSAO)
+    return _executar_roteiro(dados, ROTEIRO_ADMISSAO)
+
+
+def preencher_ferias(dados: dict) -> dict:
+    _exigir_roteiro("ferias", ROTEIRO_FERIAS)
+    return _executar_roteiro(dados, ROTEIRO_FERIAS)
+
+
+def preencher_rescisao(dados: dict) -> dict:
+    _exigir_roteiro("rescisao", ROTEIRO_RESCISAO)
+    return _executar_roteiro(dados, ROTEIRO_RESCISAO)
+
+
+def preencher_alteracao_cadastral(dados: dict) -> dict:
+    _exigir_roteiro("alteracao_cadastral", ROTEIRO_ALTERACAO_CADASTRAL)
+    return _executar_roteiro(dados, ROTEIRO_ALTERACAO_CADASTRAL)
+
+
+# ==========================================================================
+# Roteador principal e stubs de rotina
+# ==========================================================================
 
 def executar_processo(tipo_solicitacao: str, dados: dict) -> dict:
-    """
-    Roteador principal: decide qual automação de tela chamar de acordo com o
-    tipo da solicitação (ferias, rescisao, alteracao_cadastral, admissao...).
+    """Decide qual tela preencher conforme o tipo da solicitação.
+
+    Tipos sem tela definida levantam NotImplementedError — a solicitação cai
+    para atendimento manual (contrato de modules/fila_processamento.py).
     """
     roteador = {
+        "admissao": preencher_admissao,
         "ferias": preencher_ferias,
         "rescisao": preencher_rescisao,
         "alteracao_cadastral": preencher_alteracao_cadastral,
-        "admissao": preencher_admissao,
     }
     funcao = roteador.get(tipo_solicitacao)
     if funcao is None:
-        raise NotImplementedError(f"Nenhuma automação de tela definida para '{tipo_solicitacao}'.")
+        raise NotImplementedError(
+            f"Nenhuma tela de automação definida para '{tipo_solicitacao}'."
+        )
     return funcao(dados)
 
 
 def abrir_dominio():
     raise NotImplementedError("Abertura/login automático do Domínio ainda não implementado.")
-
-
-def preencher_ferias(dados: dict) -> dict:
-    raise NotImplementedError("Automação de tela de férias ainda não implementada.")
-
-
-def preencher_rescisao(dados: dict) -> dict:
-    raise NotImplementedError("Automação de tela de rescisão ainda não implementada.")
-
-
-def preencher_alteracao_cadastral(dados: dict) -> dict:
-    raise NotImplementedError("Automação de tela de alteração cadastral ainda não implementada.")
-
-
-def preencher_admissao(dados: dict) -> dict:
-    """
-    Preenche a tela de admissão do Domínio via TAB + digitação, na ordem de
-    FIELD_ORDER_ADMISSAO. Assume que o Domínio já está aberto, em primeiro
-    plano e na tela de admissão (mesmo pré-requisito do DominioAutoFill).
-    """
-    return _preencher_campos(dados, FIELD_ORDER_ADMISSAO)
 
 
 def cadastrar_feriado(data: str, descricao: str) -> dict:

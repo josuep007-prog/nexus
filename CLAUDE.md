@@ -249,7 +249,7 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 - ✅ Home do painel é um gráfico de rosca (donut) por situação; a lista aparece ao clicar numa fatia/legenda
 - ✅ Página `/acompanhamento` (só cliente): grupos por prioridade — devolvidas p/ correção → novas entregas → em andamento → concluídas
 - ✅ Na aprovação, analista escolhe automatizar (fila do worker no PC-host) ou atender manual; página `/processamento` + `scripts/worker_dominio.py`
-- ✅ `integracao/dominio_rpa.py::preencher_admissao()` portado do projeto DominioAutoFill (TAB + digitação); ordem dos campos a conferir na tela real
+- ✅ `integracao/dominio_rpa.py` reescrito do zero (sem código de outros projetos): motor de ROTEIRO por passos explícitos (`campo/texto/tecla/pausa`) — a navegação é explícita, não assume layout. Os `ROTEIRO_*` (admissão/férias/rescisão/alteração) nascem VAZIOS e a tela levanta `NotImplementedError` (cai pro manual) até serem transcritos da tela real do Domínio
 - ✅ Segurança: CSRF em todo POST (meta + injeção via app.js; login tem campo fixo), rate-limit de login (5 erros/10min → 5min bloqueado), upload com whitelist de extensões + limite de 10 MB (config.py)
 - ✅ `/conta` (todos): troca de senha, e-mail de avisos, ativar push; `/usuarios` (funcionário): criar/desativar conta, resetar senha, e-mail, empresas extras
 - ✅ Multi-CNPJ por conta cliente (tabela `usuario_empresas`): filtros e posse usam `usuario.cnpjs`; formulários mostram seletor de empresa (`macros.html::escolha_empresa`)
