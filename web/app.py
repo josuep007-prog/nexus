@@ -1157,12 +1157,15 @@ def relatorios():
                 pass
     tempo_medio_horas = round(sum(tempos_conclusao) / len(tempos_conclusao) / 3600, 1) if tempos_conclusao else None
 
-    # Produtividade por analista (etapas registradas no período)
+    # Produtividade por ANALISTA (só etapas do escritório). Etapas feitas pelo
+    # cliente (recebimento/reenvio) e pela automação não contam aqui — isto é a
+    # produtividade da EQUIPE, não de quem abre a solicitação.
+    ETAPAS_DO_CLIENTE = {"recebimento", "reenvio"}
     validacoes_periodo = db_manager.listar_validacoes_periodo(data_inicio, data_fim)
     por_analista = {}
     for v in validacoes_periodo:
         quem = v.get("aprovado_por") or "(não informado)"
-        if quem.startswith("Automação"):
+        if quem.startswith("Automação") or v["etapa"] in ETAPAS_DO_CLIENTE:
             continue
         info = por_analista.setdefault(quem, {"total": 0, "aprovacoes": 0, "entregas": 0})
         info["total"] += 1

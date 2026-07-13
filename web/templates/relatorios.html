@@ -72,23 +72,33 @@
             {% endfor %}
         </div>
     </div>
+</div>
 
-    <div class="painel">
-        <div class="painel-cabecalho"><h3>Produtividade por analista</h3></div>
-        <div class="tabela-simples">
-            <div class="linha-tabela cabecalho-tabela">
-                <span>Analista</span><strong>Etapas · Decisões · Entregas</strong>
-            </div>
-            {% for quem, info in por_analista %}
-            <div class="linha-tabela">
-                <span>{{ quem }}</span>
-                <strong class="mono">{{ info.total }} · {{ info.aprovacoes }} · {{ info.entregas }}</strong>
-            </div>
-            {% else %}
-            <div class="vazio">Nenhuma etapa registrada no período.</div>
-            {% endfor %}
-        </div>
+<div class="painel" style="margin-top: 20px;">
+    <div class="painel-cabecalho">
+        <h3>Produtividade por analista</h3>
+        <span class="dica-cabecalho">Etapas registradas no período — quem fez o quê</span>
     </div>
+    {% if por_analista %}
+    <div class="tabela-produtividade">
+        <div class="tp-linha tp-cabecalho">
+            <span>Analista</span>
+            <span title="Total de etapas registradas (validações, aprovações, entregas)">Etapas</span>
+            <span title="Aprovações e reprovações na fila de validação">Decisões</span>
+            <span title="Solicitações concluídas e entregues ao cliente">Entregas</span>
+        </div>
+        {% for quem, info in por_analista %}
+        <div class="tp-linha">
+            <span class="tp-nome">{{ quem }}</span>
+            <span class="mono">{{ info.total }}</span>
+            <span class="mono">{{ info.aprovacoes }}</span>
+            <span class="mono tp-entregas">{{ info.entregas }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="vazio">Nenhuma etapa registrada no período.</div>
+    {% endif %}
 </div>
 
 <div class="painel" style="margin-top: 20px;">
