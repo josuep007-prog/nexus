@@ -1,0 +1,32 @@
+# render.yaml — "planta" de deploy do Automação DP no Render (https://render.com)
+#
+# Como usar (resumo — passo a passo completo em DEPLOY.md):
+#   1. No Render, clique em "New +" → "Blueprint".
+#   2. Conecte este repositório do GitHub (josuep007-prog/nexus).
+#   3. O Render lê este arquivo e cria o serviço sozinho. Clique em "Apply".
+#   4. Aguarde o build; ao terminar, abre em https://<nome>.onrender.com
+#
+# Observações:
+# - Plano free: o serviço "dorme" após ~15 min sem acesso; o 1º acesso seguinte
+#   demora ~30-50s pra acordar. Ideal pra demonstração (custo zero).
+# - O banco (SQLite) é recriado a cada deploy no plano free — como DEMO_SEED=1,
+#   as contas de exemplo são repovoadas no boot. Perfeito pra demo; para dados
+#   permanentes, seria preciso um disco pago ou Postgres (fica pra depois).
+
+services:
+  - type: web
+    name: nexus-dp
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-web.txt
+    startCommand: python scripts/rodar_producao.py
+    envVars:
+      # Chave de sessão: o Render gera um valor aleatório e seguro sozinho.
+      - key: SECRET_KEY
+        generateValue: true
+      # Popula contas/dados de exemplo no 1º boot (ambiente de demonstração).
+      - key: DEMO_SEED
+        value: "1"
+      # Versão de Python estável e amplamente suportada no Render.
+      - key: PYTHON_VERSION
+        value: "3.12.5"

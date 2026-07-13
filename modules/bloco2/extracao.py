@@ -17,12 +17,18 @@ exemplos reais pra calibrarmos essa parte.
 import re
 from pathlib import Path
 
-import pdfplumber
-import pytesseract
-from PIL import Image
+# pdfplumber/pytesseract/Pillow são dependências PESADAS (e o OCR ainda exige o
+# binário do Tesseract no sistema). Importamos SOB DEMANDA, dentro das funções,
+# pra que o app web suba em ambientes enxutos (ex.: hospedagem gratuita p/ demo)
+# mesmo sem elas — nesse caso a extração degrada (retorna vazio) e o analista
+# revisa/preenche na mão, sem quebrar o fluxo.
 
 
 def _extrair_texto_pdf(caminho: Path) -> str:
+    try:
+        import pdfplumber
+    except ImportError:
+        return ""  # sem a lib, seguimos sem extração automática
     texto = []
     with pdfplumber.open(caminho) as pdf:
         for pagina in pdf.pages:
@@ -31,6 +37,11 @@ def _extrair_texto_pdf(caminho: Path) -> str:
 
 
 def _extrair_texto_imagem(caminho: Path) -> str:
+    try:
+        import pytesseract
+        from PIL import Image
+    except ImportError:
+        return ""  # sem OCR disponível, seguimos sem extração automática
     imagem = Image.open(caminho)
     return pytesseract.image_to_string(imagem, lang="por")
 

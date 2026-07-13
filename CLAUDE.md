@@ -207,6 +207,15 @@ pytest tests/              # testes de workflow, regras CLT, tipos e prazos
 python scripts/rodar_producao.py   # produção (waitress) — defina SECRET_KEY
 ```
 
+**Demonstrar na nuvem** (link fixo, qualquer computador — ver [DEPLOY.md](DEPLOY.md)):
+publicar no Render via `render.yaml` (Blueprint). O deploy usa
+`requirements-web.txt` (enxuto: sem PyQt5/pyautogui/OCR — imports pesados são
+lazy em `modules/bloco2/extracao.py` e `integracao/dominio_rpa.py`, então o app
+sobe sem eles e a extração/RPA degradam graciosamente). `rodar_producao.py` lê
+a porta de `$PORT`; com `DEMO_SEED=1` roda `scripts/seed_demo.py` no boot
+(contas admin/gestor/analista/cliente, senha `demo123`, só se o banco estiver
+vazio). SQLite é efêmero no plano free (reinicia a cada deploy) — ok pra demo.
+
 Web e desktop usam o mesmo `data/dp_automacao.db`. O Painel do Robô e o worker
 de console fazem a MESMA coisa (rodam `rodar_uma_rodada`) — use o painel pra
 operar com janela/log visível, ou o console pra deixar rodando 24h no host. Pra
@@ -254,6 +263,7 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 - ✅ Heartbeat do worker (tabela `sistema`) — selo online/offline em `/processamento`
 - ✅ Testes: `pytest tests/` (workflow, regras CLT, registro de tipos, prazos)
 - ✅ Produção: `python scripts/rodar_producao.py` (waitress) + SECRET_KEY por env
+- ✅ Deploy na nuvem p/ demonstração: `render.yaml` (Blueprint do Render) + `requirements-web.txt` enxuto + `scripts/seed_demo.py` (DEMO_SEED=1) + guia em `DEPLOY.md`
 - ✅ Design: sidebar com ícones SVG e gradiente, stepper de fluxo no detalhe, avatar+papel no rodapé, cards com filete colorido, login com fundo decorado
 - ⬜ Integração real com Domínio (login/telas restantes), Onvio, eSocial (stubs)
 - ⬜ Extração de layout específico de documentos (além de CPF/PIS/datas)
