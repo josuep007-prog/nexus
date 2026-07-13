@@ -177,7 +177,20 @@ a:hover { text-decoration: underline; }
     padding: 26px 16px;
     position: fixed;
     top: 0; bottom: 0; left: 0;
+    /* Quando o menu é mais alto que a tela, rola em vez de cortar os itens de baixo */
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
 }
+/* Barrinha de rolagem discreta, no tom da própria sidebar (escura) */
+.sidebar::-webkit-scrollbar { width: 8px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb {
+    background: var(--sidebar-border);
+    border-radius: 99px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--sidebar-muted); }
+.sidebar { scrollbar-width: thin; scrollbar-color: var(--sidebar-border) transparent; }
 
 .sidebar .brand {
     font-family: 'Space Grotesk', sans-serif;
