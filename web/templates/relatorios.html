@@ -53,9 +53,16 @@
 <div class="grade-relatorios">
     <div class="painel">
         <div class="painel-cabecalho"><h3>Por tipo</h3></div>
-        <div class="tabela-simples">
+        <div class="lista-barras">
+            {% set max_tipo = por_tipo[0][1] if por_tipo else 1 %}
             {% for tipo_k, qtd in por_tipo %}
-            <div class="linha-tabela"><span>{{ rotulo_tipo(tipo_k) }}</span><strong class="mono">{{ qtd }}</strong></div>
+            <div class="barra-item">
+                <div class="barra-topo">
+                    <span class="barra-rot">{{ rotulo_tipo(tipo_k) }}</span>
+                    <strong class="mono">{{ qtd }}</strong>
+                </div>
+                <div class="barra-track"><div class="barra-fill azul" style="width: {{ (qtd / max_tipo * 100)|round(1) }}%"></div></div>
+            </div>
             {% else %}
             <div class="vazio">Nada no período.</div>
             {% endfor %}
@@ -64,9 +71,16 @@
 
     <div class="painel">
         <div class="painel-cabecalho"><h3>Por cliente</h3></div>
-        <div class="tabela-simples">
+        <div class="lista-barras">
+            {% set max_cli = por_cliente[0][1] if por_cliente else 1 %}
             {% for nome, qtd in por_cliente %}
-            <div class="linha-tabela"><span>{{ nome }}</span><strong class="mono">{{ qtd }}</strong></div>
+            <div class="barra-item">
+                <div class="barra-topo">
+                    <span class="barra-rot">{{ nome }}</span>
+                    <strong class="mono">{{ qtd }}</strong>
+                </div>
+                <div class="barra-track"><div class="barra-fill verde" style="width: {{ (qtd / max_cli * 100)|round(1) }}%"></div></div>
+            </div>
             {% else %}
             <div class="vazio">Nada no período.</div>
             {% endfor %}

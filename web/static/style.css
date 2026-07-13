@@ -1218,6 +1218,20 @@ a:hover { text-decoration: underline; }
 /* Subtítulo/dica ao lado do título de um painel */
 .dica-cabecalho { font-size: 11.5px; color: var(--text-muted); }
 
+/* Listas com barra proporcional (Por tipo / Por cliente) */
+.lista-barras { display: flex; flex-direction: column; padding: 8px 0; }
+.barra-item { padding: 9px 20px; }
+.barra-topo {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    margin-bottom: 6px; font-size: 13px;
+}
+.barra-rot { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-topo strong { color: var(--heading); font-variant-numeric: tabular-nums; }
+.barra-track { height: 6px; background: var(--surface-inset); border-radius: 999px; overflow: hidden; }
+.barra-fill { height: 100%; border-radius: 999px; min-width: 3px; }
+.barra-fill.azul  { background: var(--accent-blue); }
+.barra-fill.verde { background: var(--accent-green); }
+
 /* Produtividade por analista: tabela de colunas alinhadas (nome + 3 métricas) */
 .tabela-produtividade { display: flex; flex-direction: column; }
 .tp-linha {
