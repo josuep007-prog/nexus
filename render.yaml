@@ -18,9 +18,8 @@ services:
     name: nexus-dp
     runtime: python
     plan: free
-    # Branch de trabalho atual (todo o desenvolvimento está aqui, não na main).
-    # Ao mesclar para a main, troque para "main" (ou remova esta linha).
-    branch: claude/great-darwin-0110uv
+    # Publica a branch principal.
+    branch: main
     buildCommand: pip install -r requirements-web.txt
     startCommand: python scripts/rodar_producao.py
     envVars:
