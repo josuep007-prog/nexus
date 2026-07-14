@@ -11,6 +11,26 @@ from config import BLOCO_1
 from core.solicitacao import Solicitacao
 from core.tipos_solicitacao import schema_do_tipo
 from core.workflow import StatusBloco1
+from modules import dossie
+
+
+def _aplicar_conferencia(sol: Solicitacao, tipo, dados_formulario, cliente_cnpj, ok, erros):
+    """Roda a conferência automática contra o Dossiê (Cenário A/B) e grava o
+    resultado na solicitação. Cenário B NUNCA bloqueia (só alerta o analista);
+    Cenário A com inconsistência real (ex.: dias > saldo) volta pro cliente."""
+    conf = dossie.conferir(tipo, dados_formulario, cliente_cnpj)
+    if not conf:
+        return ok, erros
+    dados_conf = {"conferencia_cenario": conf["cenario"]}
+    if conf.get("empregado_id"):
+        dados_conf["conferencia_empregado_id"] = conf["empregado_id"]
+    if conf.get("alerta"):
+        dados_conf["conferencia_alerta"] = conf["alerta"]
+        dados_conf["conferencia_pontos"] = conf.get("pontos_conferir", [])
+    sol.atualizar_dados(dados_conf)
+    if conf["cenario"] == "A" and conf["bloqueio_erros"]:
+        return False, list(erros) + conf["bloqueio_erros"]
+    return ok, erros
 
 
 def criar_solicitacao_generica(tipo, cliente_cnpj, cliente_nome, funcionario_nome,
@@ -36,6 +56,8 @@ def criar_solicitacao_generica(tipo, cliente_cnpj, cliente_nome, funcionario_nom
         ok, erros, extra = validar(dados_formulario)
         if extra:
             sol.atualizar_dados(extra)
+
+    ok, erros = _aplicar_conferencia(sol, tipo, dados_formulario, cliente_cnpj, ok, erros)
 
     sol.atualizar_dados({"triagem_erros": erros})
 
@@ -66,6 +88,7 @@ def atualizar_e_reenviar(sol: Solicitacao, dados_formulario: dict):
 
     # Zera o motivo da reprovação anterior e regrava os dados corrigidos.
     sol.atualizar_dados({**dados_formulario, "triagem_erros": erros, "motivo_reprovacao": None})
+    ok, erros = _aplicar_conferencia(sol, sol.tipo, dados_formulario, sol.cliente_cnpj, ok, erros)
     sol.avancar(StatusBloco1.TRIAGEM_IA)  # sai de 'reprovada' (transição liberada no workflow)
 
     if ok:

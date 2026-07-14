@@ -40,8 +40,8 @@ REGISTRO_BLOCO1 = {
              "obrigatorio": False, "opcoes": ["nao", "sim"], "onvio": "Pagar abono pecuniário"},
             {"nome": "adiantar_13", "rotulo": "Adiantar 1ª parcela do 13º salário", "tipo": "select",
              "obrigatorio": False, "opcoes": ["nao", "sim"], "onvio": "Adiantar a 1ª parcela do 13º salário"},
-            {"nome": "saldo_dias_direito", "rotulo": "Saldo de dias de direito (conferência CLT)",
-             "tipo": "number", "obrigatorio": True},
+            # O saldo de dias de direito NÃO é mais digitado: vem do Dossiê do
+            # Empregado (conferência automática em modules/dossie.py).
             {"nome": "descricao", "rotulo": "Observações", "tipo": "textarea", "obrigatorio": False,
              "onvio": "Descrição"},
         ],

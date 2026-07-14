@@ -151,12 +151,54 @@ def inicializar_banco():
                 valor TEXT
             );
 
+            -- Dossiê do Empregado: espelho local dos dados do empregado (alimentado
+            -- por solicitações processadas, massa de teste e, no futuro, sincronização
+            -- do Onvio). É a fonte da conferência CLT automática.
+            CREATE TABLE IF NOT EXISTS empregados (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cliente_cnpj TEXT NOT NULL,          -- empresa (cliente) do empregado
+                cpf TEXT NOT NULL,                   -- identificação dentro da empresa
+                nome TEXT,
+                data_nascimento TEXT,
+                pis_nis TEXT,
+                matricula TEXT,                      -- código no Domínio/Onvio (quando houver)
+                cargo TEXT,
+                departamento TEXT,
+                salario TEXT,
+                data_admissao TEXT,
+                ctps_numero TEXT,
+                ctps_serie TEXT,
+                banco TEXT,
+                agencia TEXT,
+                conta TEXT,
+                raca_cor TEXT,
+                saldo_ferias_dias INTEGER,           -- saldo p/ conferência automática de férias
+                origem_dados TEXT,                   -- onvio, solicitacao, teste, manual
+                ativo INTEGER NOT NULL DEFAULT 1,
+                criado_em TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL,
+                UNIQUE(cliente_cnpj, cpf)
+            );
+
+            CREATE TABLE IF NOT EXISTS empregado_historico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empregado_id INTEGER NOT NULL REFERENCES empregados(id) ON DELETE CASCADE,
+                tipo TEXT NOT NULL,                  -- admissao, ferias, rescisao, alteracao...
+                descricao TEXT,
+                dados_json TEXT,
+                solicitacao_id INTEGER REFERENCES solicitacoes(id) ON DELETE SET NULL,
+                data_evento TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_solicitacoes_status ON solicitacoes(status);
             CREATE INDEX IF NOT EXISTS idx_solicitacoes_bloco_tipo ON solicitacoes(bloco, tipo);
             CREATE INDEX IF NOT EXISTS idx_anexos_solicitacao ON anexos(solicitacao_id);
             CREATE INDEX IF NOT EXISTS idx_validacoes_solicitacao ON validacoes(solicitacao_id);
             CREATE INDEX IF NOT EXISTS idx_usuarios_login ON usuarios(login);
             CREATE INDEX IF NOT EXISTS idx_comentarios_solicitacao ON comentarios(solicitacao_id);
+            CREATE INDEX IF NOT EXISTS idx_empregados_cnpj_cpf ON empregados(cliente_cnpj, cpf);
+            CREATE INDEX IF NOT EXISTS idx_empregado_historico_emp ON empregado_historico(empregado_id);
             """
         )
 
@@ -433,6 +475,108 @@ def listar_alertas(status="pendente"):
 def atualizar_status_alerta(alerta_id, novo_status):
     with get_conn() as conn:
         conn.execute("UPDATE alertas SET status = ? WHERE id = ?", (novo_status, alerta_id))
+
+
+# ---------------------------------------------------------------------------
+# Dossiê do Empregado (espelho local usado na conferência CLT automática)
+# ---------------------------------------------------------------------------
+
+# Colunas de dados do empregado que a ingestão pode preencher/atualizar.
+_CAMPOS_EMPREGADO = [
+    "nome", "data_nascimento", "pis_nis", "matricula", "cargo", "departamento",
+    "salario", "data_admissao", "ctps_numero", "ctps_serie", "banco", "agencia",
+    "conta", "raca_cor", "saldo_ferias_dias",
+]
+
+
+def sincronizar_empregado(cliente_cnpj, cpf, dados=None, origem_dados=None):
+    """Upsert de um empregado por (cliente_cnpj, cpf). Só grava os campos
+    presentes em `dados` (atualização parcial — não apaga o que não veio).
+    Retorna o id do empregado."""
+    dados = dados or {}
+    agora = datetime.now().isoformat(timespec="seconds")
+    campos = {c: dados[c] for c in _CAMPOS_EMPREGADO if dados.get(c) not in (None, "")}
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM empregados WHERE cliente_cnpj = ? AND cpf = ?",
+            (cliente_cnpj, cpf),
+        ).fetchone()
+        if row:
+            emp_id = row["id"]
+            pares = [f"{c} = ?" for c in campos]
+            valores = list(campos.values())
+            if origem_dados:
+                pares.append("origem_dados = ?")
+                valores.append(origem_dados)
+            pares.append("atualizado_em = ?")
+            valores.append(agora)
+            valores.append(emp_id)
+            conn.execute(f"UPDATE empregados SET {', '.join(pares)} WHERE id = ?", valores)
+        else:
+            colunas = ["cliente_cnpj", "cpf"] + list(campos.keys()) + \
+                      ["origem_dados", "ativo", "criado_em", "atualizado_em"]
+            valores = [cliente_cnpj, cpf] + list(campos.values()) + [origem_dados, 1, agora, agora]
+            placeholders = ", ".join(["?"] * len(colunas))
+            cur = conn.execute(
+                f"INSERT INTO empregados ({', '.join(colunas)}) VALUES ({placeholders})", valores)
+            emp_id = cur.lastrowid
+        return emp_id
+
+
+def obter_empregado(cliente_cnpj, cpf):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM empregados WHERE cliente_cnpj = ? AND cpf = ?",
+            (cliente_cnpj, cpf),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def obter_empregado_por_nome(cliente_cnpj, nome):
+    """Fallback quando a solicitação não traz CPF: casa pelo nome (case-insensitive)."""
+    if not nome:
+        return None
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM empregados WHERE cliente_cnpj = ? AND lower(nome) = lower(?)",
+            (cliente_cnpj, nome.strip()),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def listar_empregados(cliente_cnpj=None):
+    with get_conn() as conn:
+        if cliente_cnpj:
+            rows = conn.execute(
+                "SELECT * FROM empregados WHERE cliente_cnpj = ? ORDER BY nome", (cliente_cnpj,)
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM empregados ORDER BY cliente_cnpj, nome").fetchall()
+        return [dict(r) for r in rows]
+
+
+def adicionar_historico_empregado(empregado_id, tipo, descricao=None, dados=None,
+                                   solicitacao_id=None, data_evento=None):
+    agora = datetime.now().isoformat(timespec="seconds")
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO empregado_historico
+                (empregado_id, tipo, descricao, dados_json, solicitacao_id, data_evento, criado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (empregado_id, tipo, descricao, json.dumps(dados or {}, ensure_ascii=False),
+             solicitacao_id, data_evento or agora, agora),
+        )
+
+
+def listar_historico_empregado(empregado_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM empregado_historico WHERE empregado_id = ? ORDER BY data_evento DESC, id DESC",
+            (empregado_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------

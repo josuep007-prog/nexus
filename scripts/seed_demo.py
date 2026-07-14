@@ -65,8 +65,9 @@ EMPRESAS = [
 # Solicitações de exemplo (para a tela inicial não abrir vazia), em nome do
 # cliente "Cliente" (CNPJ 00.000.000/0001-00).
 EXEMPLOS = [
+    # Empregado José da Silva (CPF no dossiê, saldo 30) -> Cenário A (conferência automática).
     ("ferias", {"empregado_nome": "José da Silva", "empregado_cpf": "123.456.789-00",
-                "data_inicio_gozo": "2026-08-01", "dias_solicitados": "30", "saldo_dias_direito": "30",
+                "data_inicio_gozo": "2026-08-01", "dias_solicitados": "30",
                 "abono_pecuniario": "nao", "adiantar_13": "nao"}),
     ("declaracao", {"tipo_declaracao": "Vínculo empregatício", "funcionario": "José da Silva"}),
     ("folha_adiantamento", {"competencia": "2026-07", "percentual": "40"}),
@@ -91,6 +92,11 @@ def semear():
         uid = ids_por_login.get(e["login"])
         if uid:
             db_manager.adicionar_empresa_usuario(uid, e["cnpj"], e["nome"])
+
+    # Massa de teste do Dossiê do Empregado (antes das solicitações-exemplo, para
+    # que a conferência automática de férias já encontre o empregado).
+    from scripts.seed_empregados import semear_empregados
+    semear_empregados()
 
     for tipo, dados in EXEMPLOS:
         try:

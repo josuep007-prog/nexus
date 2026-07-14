@@ -24,6 +24,7 @@ from core.solicitacao import Solicitacao
 from core.workflow import StatusBloco1, StatusBloco2, EM_ATENDIMENTO_MANUAL, AGUARDANDO_ENTREGA
 from database import db_manager
 from integracao import dominio_rpa
+from modules import dossie
 from modules.bloco2.atestados import extensao_permitida
 from utils import file_manager
 
@@ -50,6 +51,7 @@ def processar_automatico(sol: Solicitacao):
                     comentario="Preenchido no Domínio pela automação")
         # Automação fez o trabalho no Domínio; agora o escritório revisa,
         # anexa o resultado (comprovante/documento) e entrega ao cliente.
+        dossie.registrar_solicitacao_processada(sol)
         sol.avancar(AGUARDANDO_ENTREGA)
         return True, resultado
     except NotImplementedError as exc:
@@ -94,6 +96,7 @@ def concluir_atendimento_manual(sol: Solicitacao, por: str = None, resumo: str =
     sol.atualizar_dados(dados)
     sol.validar("processamento_manual", True, aprovado_por=por,
                 comentario=resumo or "Atendido manualmente no Domínio")
+    dossie.registrar_solicitacao_processada(sol)
     # Entrega direta ao cliente. (As etapas internas seguintes ainda são stubs;
     # quando existirem, é aqui que se insere aprovação 2/3 antes de concluir.)
     sol.avancar(StatusBloco1.CONCLUIDA if sol.bloco == BLOCO_1 else StatusBloco2.CONCLUIDA)

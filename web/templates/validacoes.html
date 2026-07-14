@@ -24,6 +24,7 @@
             <span class="acordeao-titulo">{{ rotulo_tipo(sol.tipo) }}</span>
             <span class="acordeao-cliente">{{ sol._row.cliente_nome or "—" }}</span>
             {% if pendencias %}<span class="selo-alerta" title="Pendências encontradas na triagem/extração">⚠ {{ pendencias|length }} pendência{{ 's' if pendencias|length > 1 }}</span>{% endif %}
+            {% if sol.dados.get('conferencia_alerta') %}<span class="selo-alerta" title="Sem dados para conferência automática — conferir na mão">🔎 conferência manual</span>{% elif sol.dados.get('conferencia_cenario') == 'A' %}<span class="tag-prazo" title="Conferência CLT feita automaticamente com o cadastro">✓ conferido</span>{% endif %}
             {% set sit = situacao_prazo(sol) %}
             {% if sit in ('atencao', 'estourado') %}
             <span class="tag-prazo {{ sit }}">⏱ {{ rotulo_prazo(sol) }}</span>
@@ -45,10 +46,23 @@
             </div>
             {% endif %}
 
+            {% if sol.dados.get('conferencia_alerta') %}
+            <div class="caixa-aviso" style="margin-bottom:10px;">
+                <strong>🔎 Atenção — conferência manual:</strong> {{ sol.dados.get('conferencia_alerta') }}
+                {% if sol.dados.get('conferencia_pontos') %}
+                <ul>
+                    {% for ponto in sol.dados.get('conferencia_pontos') %}<li>{{ ponto }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% elif sol.dados.get('conferencia_cenario') == 'A' %}
+            <p class="meta" style="margin-bottom:10px;">✓ Conferência CLT feita automaticamente com os dados do cadastro do empregado.</p>
+            {% endif %}
+
             {% if sol.dados %}
             <div class="dados-lista">
                 {% for chave, valor in sol.dados.items() %}
-                    {% if valor and chave not in ("triagem_erros", "extracao_erros") %}
+                    {% if valor and chave not in ("triagem_erros", "extracao_erros") and not chave.startswith("conferencia_") %}
                         <code>{{ chave }}</code>: {{ valor }}&nbsp;&nbsp;
                     {% endif %}
                 {% endfor %}

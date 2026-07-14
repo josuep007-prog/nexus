@@ -57,29 +57,21 @@ def validar_ferias_dados(dados: dict):
     Validação do formulário de Férias no caminho genérico da web (dict-in,
     retorno (ok, erros, extra)).
 
-    Os campos seguem a solicitação "Cálculo de Férias" do Onvio Portal do
-    Cliente (empregado, início do gozo, dias de gozo, abono, adiantar 13º),
-    mais o campo próprio do nexus `saldo_dias_direito` — que NÃO vai pro Onvio,
-    mas alimenta a conferência CLT (art. 134) antes da validação humana.
-    Reaproveita `validar_ferias` para a regra dos dias/fracionamento.
+    Confere só o básico do formulário (campos presentes e dias > 0). A regra
+    CLT do saldo (dias solicitados x saldo de direito) NÃO fica mais aqui: o
+    saldo vem do Dossiê do Empregado e é conferido automaticamente em
+    modules/dossie.py::conferir_ferias (Cenário A), com fallback para o analista
+    quando faltam dados (Cenário B).
     """
     erros = _campos_obrigatorios(dados, ["empregado_nome", "data_inicio_gozo", "dias_solicitados"])
 
-    def _inteiro(chave, padrao):
-        bruto = str(dados.get(chave, "")).strip()
-        if not bruto:
-            return padrao
+    bruto = str(dados.get("dias_solicitados", "")).strip()
+    if bruto:
         try:
-            return int(bruto)
+            if int(bruto) <= 0:
+                erros.append("Dias de gozo deve ser maior que zero.")
         except ValueError:
-            erros.append(f"Valor inválido em '{chave}': informe um número inteiro de dias.")
-            return padrao
-
-    dias = _inteiro("dias_solicitados", 0)
-    saldo = _inteiro("saldo_dias_direito", 30)
-
-    _, erros_clt = validar_ferias(dias, saldo_dias_direito=saldo)
-    erros.extend(erros_clt)
+            erros.append("Dias de gozo inválido: informe um número inteiro.")
 
     return (len(erros) == 0, erros, {})
 
