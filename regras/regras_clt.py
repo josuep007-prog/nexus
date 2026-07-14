@@ -52,6 +52,38 @@ def validar_ferias(dias_solicitados, saldo_dias_direito=30, periodos=None):
     return (len(erros) == 0, erros)
 
 
+def validar_ferias_dados(dados: dict):
+    """
+    Validação do formulário de Férias no caminho genérico da web (dict-in,
+    retorno (ok, erros, extra)).
+
+    Os campos seguem a solicitação "Cálculo de Férias" do Onvio Portal do
+    Cliente (empregado, início do gozo, dias de gozo, abono, adiantar 13º),
+    mais o campo próprio do nexus `saldo_dias_direito` — que NÃO vai pro Onvio,
+    mas alimenta a conferência CLT (art. 134) antes da validação humana.
+    Reaproveita `validar_ferias` para a regra dos dias/fracionamento.
+    """
+    erros = _campos_obrigatorios(dados, ["empregado_nome", "data_inicio_gozo", "dias_solicitados"])
+
+    def _inteiro(chave, padrao):
+        bruto = str(dados.get(chave, "")).strip()
+        if not bruto:
+            return padrao
+        try:
+            return int(bruto)
+        except ValueError:
+            erros.append(f"Valor inválido em '{chave}': informe um número inteiro de dias.")
+            return padrao
+
+    dias = _inteiro("dias_solicitados", 0)
+    saldo = _inteiro("saldo_dias_direito", 30)
+
+    _, erros_clt = validar_ferias(dias, saldo_dias_direito=saldo)
+    erros.extend(erros_clt)
+
+    return (len(erros) == 0, erros, {})
+
+
 # ---------------------------------------------------------------------------
 # AVISO PRÉVIO / RESCISÃO
 # ---------------------------------------------------------------------------

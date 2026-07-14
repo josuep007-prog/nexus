@@ -22,11 +22,30 @@ from regras import regras_clt
 REGISTRO_BLOCO1 = {
     "ferias": {
         "titulo": "Férias",
+        # Alinhado à solicitação "Cálculo de Férias" do Onvio Portal do Cliente.
+        # Cada campo com chave "onvio" é repassado à solicitação equivalente no
+        # Onvio; os sem "onvio" (ex.: saldo_dias_direito) são só do nexus, para a
+        # conferência CLT antes da validação humana.
+        "onvio_solicitacao": "Cálculo de Férias",
         "campos": [
-            {"nome": "dias_solicitados", "rotulo": "Dias solicitados", "tipo": "number", "obrigatorio": True},
-            {"nome": "saldo_dias_direito", "rotulo": "Saldo de dias de direito", "tipo": "number", "obrigatorio": True},
+            {"nome": "empregado_nome", "rotulo": "Empregado", "tipo": "text", "obrigatorio": True,
+             "onvio": "Empregado"},
+            {"nome": "empregado_cpf", "rotulo": "CPF do empregado", "tipo": "text", "obrigatorio": False,
+             "onvio": "Empregado (localização por CPF)"},
+            {"nome": "data_inicio_gozo", "rotulo": "Data de início do gozo", "tipo": "date", "obrigatorio": True,
+             "onvio": "Data de início do gozo"},
+            {"nome": "dias_solicitados", "rotulo": "Dias de gozo", "tipo": "number", "obrigatorio": True,
+             "onvio": "Dias de gozo"},
+            {"nome": "abono_pecuniario", "rotulo": "Pagar abono pecuniário (vender 1/3)", "tipo": "select",
+             "obrigatorio": False, "opcoes": ["nao", "sim"], "onvio": "Pagar abono pecuniário"},
+            {"nome": "adiantar_13", "rotulo": "Adiantar 1ª parcela do 13º salário", "tipo": "select",
+             "obrigatorio": False, "opcoes": ["nao", "sim"], "onvio": "Adiantar a 1ª parcela do 13º salário"},
+            {"nome": "saldo_dias_direito", "rotulo": "Saldo de dias de direito (conferência CLT)",
+             "tipo": "number", "obrigatorio": True},
+            {"nome": "descricao", "rotulo": "Observações", "tipo": "textarea", "obrigatorio": False,
+             "onvio": "Descrição"},
         ],
-        "validar": None,  # já tem fluxo dedicado em modules/bloco1/recebimento.py
+        "validar": regras_clt.validar_ferias_dados,
         "rota_especial": None,
     },
     "rescisao": {

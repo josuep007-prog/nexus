@@ -65,7 +65,9 @@ EMPRESAS = [
 # Solicitações de exemplo (para a tela inicial não abrir vazia), em nome do
 # cliente "Cliente" (CNPJ 00.000.000/0001-00).
 EXEMPLOS = [
-    ("ferias", {"data_inicio": "2026-08-01", "dias_solicitados": "30", "saldo_dias_direito": "30"}),
+    ("ferias", {"empregado_nome": "José da Silva", "empregado_cpf": "123.456.789-00",
+                "data_inicio_gozo": "2026-08-01", "dias_solicitados": "30", "saldo_dias_direito": "30",
+                "abono_pecuniario": "nao", "adiantar_13": "nao"}),
     ("declaracao", {"tipo_declaracao": "Vínculo empregatício", "funcionario": "José da Silva"}),
     ("folha_adiantamento", {"competencia": "2026-07", "percentual": "40"}),
 ]
