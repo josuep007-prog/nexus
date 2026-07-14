@@ -31,27 +31,60 @@ Pronto. Esse link é fixo — mande pra quem quiser, funciona em qualquer lugar.
 
 ---
 
+## Qual branch o Render publica
+
+O deploy está fixado na branch de trabalho **`claude/great-darwin-0110uv`**
+(campo `branch:` no `render.yaml`) — é onde está todo o desenvolvimento. Se o
+serviço no Render já tiver sido criado apontando para outra branch (ex.: `main`),
+ajuste em **Settings → Branch** para `claude/great-darwin-0110uv` e clique em
+**Manual Deploy → Deploy latest commit**. Ao mesclar tudo na `main` no futuro,
+troque o `branch:` do `render.yaml` (ou remova a linha) para voltar a seguir a `main`.
+
+---
+
 ## Contas de demonstração (já criadas no 1º acesso)
 
-Senha de todas: **demo123**
+Senha de todas: **123**
 
-| Login      | Papel                     | Enxerga |
-|------------|---------------------------|---------|
-| `admin`    | Administrador master      | Tudo, incluindo gestão de contas do escritório |
-| `gestor`   | Gestor do departamento    | Operacional + relatórios + contas de cliente |
-| `analista` | Funcionário do escritório | Recebe, valida, processa e entrega |
-| `cliente`  | Cliente (empresa)         | Só as próprias solicitações |
+| Login           | Papel                     | Enxerga |
+|-----------------|---------------------------|---------|
+| `administrador` | Administrador master      | Tudo, incluindo gestão de contas do escritório |
+| `gestor`        | Gestor do departamento    | Operacional + relatórios + contas de cliente |
+| `funcionario`   | Funcionário do escritório | Recebe, valida, processa e entrega |
+| `cliente`       | Cliente (empresa)         | Só as próprias solicitações |
 
-> Dica para demonstrar os papéis: entre como `admin` para mostrar a visão
-> completa, depois saia e entre como `cliente` para mostrar a experiência de
-> quem abre solicitações. Os menus mudam conforme o papel.
+> Dica para demonstrar os papéis: entre como `administrador` para mostrar a
+> visão completa, depois saia e entre como `cliente` para mostrar a experiência
+> de quem abre solicitações. Os menus mudam conforme o papel.
+
+Além das contas, o 1º acesso também cria uma **massa de empregados de teste**
+(Dossiê do Empregado) vinculada aos clientes, para exercitar a conferência CLT
+automática.
+
+---
+
+## Como testar a conferência automática (Cenário A x Cenário B)
+
+1. Entre como **`cliente`** e abra **Nova → Férias**.
+2. **Cenário A (dados completos):** no campo Empregado use `José da Silva` e no
+   CPF `123.456.789-00` (empregado com saldo de 30 dias no cadastro). Peça
+   **30 dias** → passa; peça **40 dias** → o sistema devolve para correção
+   (excede o saldo). Não é preciso digitar saldo nenhum: ele vem do cadastro.
+3. **Cenário B (dados insuficientes):** use um nome qualquer que não exista no
+   cadastro (ex.: `Fulano da Silva`). A solicitação **não é bloqueada** — segue
+   normal, mas fica marcada para o analista.
+4. Entre como **`funcionario`** (ou `administrador`) e abra **Validações**: a de
+   José aparece com o selo **✓ conferido**; a do Fulano com **🔎 conferência
+   manual** e uma caixa em destaque dizendo o que checar na mão.
 
 ---
 
 ## Atualizar a demo depois de mudar o código
 
-É automático: sempre que você (ou eu) fizer `git push` para o GitHub, o Render
-**rebuilda e republica** sozinho em 1–2 minutos. Não precisa mexer em nada.
+É automático: todo `git push` para a branch publicada (acima) faz o Render
+**rebuildar e republicar** sozinho em 1–2 minutos. Os dados (banco temporário do
+plano free) recomeçam limpos a cada publicação, já com as contas e a massa de
+teste repostas.
 
 ---
 
