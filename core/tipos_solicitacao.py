@@ -50,13 +50,28 @@ REGISTRO_BLOCO1 = {
     },
     "rescisao": {
         "titulo": "Rescisão",
+        # Alinhado à solicitação "Cálculo de Rescisão" do Onvio Portal do Cliente.
+        "onvio_solicitacao": "Cálculo de Rescisão",
         "campos": [
-            {"nome": "tipo_rescisao", "rotulo": "Tipo de rescisão", "tipo": "select", "obrigatorio": True,
-             "opcoes": ["sem_justa_causa", "pedido_demissao", "justa_causa", "acordo_comum", "termino_contrato"]},
-            {"nome": "data_admissao", "rotulo": "Data de admissão", "tipo": "date", "obrigatorio": True},
-            {"nome": "data_demissao", "rotulo": "Data de demissão", "tipo": "date", "obrigatorio": True},
+            {"nome": "empregado_nome", "rotulo": "Empregado", "tipo": "text", "obrigatorio": True,
+             "onvio": "Empregado"},
+            {"nome": "empregado_cpf", "rotulo": "CPF do empregado", "tipo": "text", "obrigatorio": False,
+             "onvio": "Empregado (localização por CPF)"},
+            {"nome": "tipo_rescisao", "rotulo": "Motivo da rescisão", "tipo": "select", "obrigatorio": True,
+             "opcoes": ["sem_justa_causa", "pedido_demissao", "justa_causa", "acordo_comum", "termino_contrato"],
+             "onvio": "Motivo da rescisão"},
+            {"nome": "data_demissao", "rotulo": "Data de demissão", "tipo": "date", "obrigatorio": True,
+             "onvio": "Data de demissão"},
+            {"nome": "data_aviso_previo", "rotulo": "Data do aviso prévio", "tipo": "date", "obrigatorio": False,
+             "onvio": "Data do aviso prévio"},
+            {"nome": "tipo_aviso_previo", "rotulo": "Tipo do aviso prévio", "tipo": "select", "obrigatorio": False,
+             "opcoes": ["trabalhado", "indenizado", "dispensado"], "onvio": "Tipo do aviso prévio"},
+            {"nome": "data_admissao", "rotulo": "Data de admissão (conferência CLT)", "tipo": "date",
+             "obrigatorio": True},
+            {"nome": "descricao", "rotulo": "Observações", "tipo": "textarea", "obrigatorio": False,
+             "onvio": "Descrição"},
         ],
-        "validar": None,  # já tem fluxo dedicado em modules/bloco1/recebimento.py
+        "validar": regras_clt.validar_rescisao_dados,
         "rota_especial": None,
     },
     "alteracao_cadastral": {
@@ -286,11 +301,16 @@ REGISTRO_BLOCO2 = {
     },
     "outros": {
         "titulo": "Outros (fora da lista)",
+        # Alinhado à "Solicitação Geral" do Onvio Portal do Cliente.
+        "onvio_solicitacao": "Solicitação Geral",
         "campos": [
+            {"nome": "departamento", "rotulo": "Departamento responsável", "tipo": "text", "obrigatorio": False,
+             "placeholder": "Ex: Departamento Pessoal", "onvio": "Departamento responsável pela solicitação"},
             {"nome": "assunto", "rotulo": "Assunto", "tipo": "text", "obrigatorio": True,
-             "placeholder": "Resumo do que você precisa"},
+             "placeholder": "Resumo do que você precisa", "onvio": "Assunto"},
             {"nome": "descricao", "rotulo": "Descrição", "tipo": "textarea", "obrigatorio": True,
-             "placeholder": "Descreva a solicitação com o máximo de detalhes. Se tiver documento, anexe abaixo."},
+             "placeholder": "Descreva a solicitação com o máximo de detalhes. Se tiver documento, anexe abaixo.",
+             "onvio": "Descrição"},
         ],
         "validar": regras_clt.validar_outros,
         "automatizavel": False,  # solicitação livre — só atendimento manual

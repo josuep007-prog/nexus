@@ -122,6 +122,40 @@ def validar_rescisao(tipo_rescisao, data_admissao: date, data_demissao: date):
     return (len(erros) == 0, erros, {"dias_aviso_previo_estimado": dias_aviso})
 
 
+def validar_rescisao_dados(dados: dict):
+    """
+    Validação do formulário de Rescisão no caminho genérico da web (dict-in,
+    retorno (ok, erros, extra)).
+
+    Campos seguem a solicitação "Cálculo de Rescisão" do Onvio Portal do
+    Cliente (empregado, data de demissão, motivo/tipo, aviso prévio), mais
+    `data_admissao` — usada só pelo nexus para estimar o aviso prévio (CLT)
+    antes da validação humana. Reaproveita `validar_rescisao`.
+    """
+    erros = _campos_obrigatorios(
+        dados, ["empregado_nome", "data_admissao", "data_demissao", "tipo_rescisao"])
+
+    def _data(chave):
+        bruto = str(dados.get(chave, "")).strip()
+        if not bruto:
+            return None
+        try:
+            return date.fromisoformat(bruto)
+        except ValueError:
+            erros.append(f"Data inválida em '{chave}' (esperado AAAA-MM-DD).")
+            return None
+
+    d_adm = _data("data_admissao")
+    d_dem = _data("data_demissao")
+
+    extra = {}
+    if d_adm and d_dem and dados.get("tipo_rescisao"):
+        _, erros_rescisao, extra = validar_rescisao(dados.get("tipo_rescisao"), d_adm, d_dem)
+        erros.extend(erros_rescisao)
+
+    return (len(erros) == 0, erros, extra)
+
+
 # ---------------------------------------------------------------------------
 # ADMISSÃO
 # ---------------------------------------------------------------------------
