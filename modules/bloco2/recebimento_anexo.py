@@ -62,10 +62,14 @@ def extrair_e_validar(solicitacao: Solicitacao):
                 erros_totais.append(
                     f"Anexo {anexo['id']}: PDF sem camada de texto (documento escaneado) — "
                     "nada pôde ser extraído automaticamente; confira na mão.")
+            elif diagnostico.get("falha_leitura") == extracao.SEM_OCR:
+                erros_totais.append(
+                    f"Anexo {anexo['id']}: é uma imagem e o OCR (Tesseract) não está "
+                    "instalado neste servidor — confira na mão.")
             elif diagnostico.get("falha_leitura") == extracao.SEM_BIBLIOTECA:
                 erros_totais.append(
                     f"Anexo {anexo['id']}: leitura automática indisponível neste ambiente "
-                    "(OCR/PDF não instalados) — confira na mão.")
+                    "(biblioteca de PDF/imagem não instalada) — confira na mão.")
             for campo, motivo in (diagnostico.get("recusados") or {}).items():
                 erros_totais.append(f"'{campo}' encontrado mas não aceito: {motivo}.")
         except NotImplementedError:

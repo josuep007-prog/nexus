@@ -274,13 +274,18 @@ padrão de `conferir_ferias`, e registre em `_CONFERENCIAS`.
      (fichas põem vários campos na mesma linha e o pdfplumber normaliza os
      espaços) — cortar em "qualquer palavra com dois-pontos" quebraria
      "Horário: 08:00 as 17:00";
+  0b. só têm extrator os tipos cujo anexo é documento com campos rotulados:
+     admissões, atestado e licenças (`_EXTRATORES_POR_TIPO`) — planilha de
+     rubricas e comprovantes avulsos não seguem "Rótulo: valor";
   1. valor passa por normalização (data→ISO, R$→decimal) e, quando há regra
      (CPF/PIS), por dígito verificador — **dado ruim vira pendência, não
      entra como se fosse bom**;
   2. o retorno traz `_diagnostico` (achados/faltando/recusados/falha_leitura),
      consumido por `recebimento_anexo.extrair_e_validar` para virar pendência
-     explícita — inclusive "PDF sem camada de texto" (escaneado), que antes
-     falhava em silêncio;
+     explícita. Os motivos de falha são DISTINTOS de propósito, porque a
+     solução de cada um é diferente: `PDF_SEM_TEXTO` (escaneado),
+     `SEM_OCR` (falta o binário do Tesseract — não resolve com pip) e
+     `SEM_BIBLIOTECA` (falta a lib Python);
   3. `_diagnostico` é removido antes de virar dado da solicitação.
 
 ## Como testar

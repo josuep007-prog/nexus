@@ -54,10 +54,16 @@ def main():
         print("   página inteira (pdf2image + poppler) — hoje não instalado.")
         print("   Alternativa imediata: peça o documento em foto/JPG, que passa por OCR.\n")
         sys.exit(0)
+    if motivo == extracao.SEM_OCR:
+        print("⚠  FALTA O TESSERACT (OCR) para ler imagens.")
+        print("   A lib Python está instalada, mas o PROGRAMA Tesseract não — ele não")
+        print("   vem pelo pip. No Windows: github.com/UB-Mannheim/tesseract/wiki")
+        print("   (marque o idioma 'Portuguese' e a opção de adicionar ao PATH).")
+        print("   Sem instalar nada: teste com um PDF que tenha texto.\n")
+        sys.exit(0)
     if motivo == extracao.SEM_BIBLIOTECA:
-        print("⚠  Bibliotecas de leitura indisponíveis neste ambiente.")
-        print("   Instale:  pip install pdfplumber pytesseract Pillow")
-        print("   Para imagens, é preciso também o binário do Tesseract (idioma 'por').\n")
+        print("⚠  Biblioteca de leitura indisponível neste ambiente.")
+        print("   Instale:  pip install pdfplumber pytesseract Pillow\n")
         sys.exit(0)
 
     print(f"Texto lido: {len(texto)} caracteres\n")

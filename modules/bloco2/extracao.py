@@ -35,9 +35,12 @@ from pathlib import Path
 # mesmo sem elas — nesse caso a extração degrada (retorna vazio) e o analista
 # revisa/preenche na mão, sem quebrar o fluxo.
 
-# Motivos de diagnóstico (o "porquê" de não ter extraído nada)
-SEM_BIBLIOTECA = "sem_biblioteca"
-PDF_SEM_TEXTO = "pdf_sem_camada_de_texto"
+# Motivos de diagnóstico (o "porquê" de não ter extraído nada). Distinguir
+# importa: a solução de cada um é diferente, e dizer "faltam bibliotecas"
+# quando o que falta é o Tesseract manda o usuário pro caminho errado.
+SEM_BIBLIOTECA = "sem_biblioteca"        # falta a lib Python (pip install)
+SEM_OCR = "sem_ocr"                      # lib Python ok, falta o binário do Tesseract
+PDF_SEM_TEXTO = "pdf_sem_camada_de_texto"  # PDF escaneado (é imagem por dentro)
 
 
 # ---------------------------------------------------------------------------
@@ -65,12 +68,15 @@ def _extrair_texto_imagem(caminho: Path):
     try:
         import pytesseract
         from PIL import Image
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - falta a lib Python
         return "", SEM_BIBLIOTECA
     try:
         return pytesseract.image_to_string(Image.open(caminho), lang="por").strip(), None
-    except Exception:  # noqa: BLE001 - Tesseract ausente/sem o idioma instalado
-        return "", SEM_BIBLIOTECA
+    except Exception:  # noqa: BLE001
+        # Caso mais comum: pytesseract instalado, mas o PROGRAMA Tesseract não
+        # (TesseractNotFoundError) ou sem o idioma 'por'. É problema de sistema
+        # operacional, não de pip — por isso tem motivo próprio.
+        return "", SEM_OCR
 
 
 def extrair_texto_bruto(caminho_arquivo: str) -> str:
@@ -332,23 +338,15 @@ def _extrair_campos_afastamento(texto: str) -> dict:
     return dados
 
 
-def _extrair_campos_folha_variavel(texto: str) -> dict:
-    # Lançamento de rubricas costuma vir em planilha/tabela — o parsing por
-    # tabela depende do formato real do cliente. Por ora entrega nome/CPF e o
-    # texto para conferência.
-    dados = extrair_campos(texto, ["nome_completo", "cpf"])
-    dados["texto_bruto"] = (texto or "")[:2000]
-    return dados
-
-
+# Só os tipos cujo anexo é um DOCUMENTO COM CAMPOS ROTULADOS, de onde faz
+# sentido extrair: admissões (ficha de registro), atestados e licenças.
+# Os demais anexos (planilha de rubricas, comprovantes avulsos) não têm o
+# padrão "Rótulo: valor" — ali a extração só geraria ruído.
 _EXTRATORES_POR_TIPO = {
     "admissao": _extrair_campos_admissao,
     "admissao_estagiario": _extrair_campos_admissao,
     "admissao_aprendiz": _extrair_campos_admissao,
-    "folha_com_variaveis": _extrair_campos_folha_variavel,
-    "afastamento_inss": _extrair_campos_afastamento,
     "atestado": _extrair_campos_afastamento,
-    "cat": _extrair_campos_afastamento,
     "licenca_maternidade": _extrair_campos_afastamento,
     "licenca_paternidade": _extrair_campos_afastamento,
 }

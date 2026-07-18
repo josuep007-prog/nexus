@@ -59,14 +59,31 @@
         </ul>
     </div>
 </div>
+{% elif r.falha_leitura == 'sem_ocr' %}
+<div class="painel" style="margin-bottom:20px;">
+    <div class="acordeao-corpo">
+        <h3 style="color:var(--accent-red);">Falta o Tesseract para ler imagens</h3>
+        <p>Este arquivo é uma <strong>imagem</strong>, e ler texto de imagem exige OCR.
+            A biblioteca Python está instalada, mas o <strong>programa Tesseract</strong> não —
+            e ele não vem pelo <code>pip</code>, é instalação do sistema.</p>
+        <p class="dica-cabecalho" style="margin-top:10px;"><strong>Como resolver (Windows):</strong></p>
+        <ul>
+            <li>Baixe o instalador em <code>github.com/UB-Mannheim/tesseract/wiki</code></li>
+            <li>Durante a instalação, marque o idioma <strong>Portuguese</strong></li>
+            <li>Marque também a opção de adicionar ao <strong>PATH</strong> (ou reinicie depois)</li>
+        </ul>
+        <p class="dica-cabecalho"><strong>Sem instalar nada:</strong> teste com um
+            <strong>PDF que tenha texto</strong> (gerado por sistema, não escaneado) — esse caminho
+            já funciona aqui e serve perfeitamente para calibrar os rótulos.</p>
+    </div>
+</div>
 {% elif r.falha_leitura == 'sem_biblioteca' %}
 <div class="painel" style="margin-bottom:20px;">
     <div class="acordeao-corpo">
-        <h3 style="color:var(--accent-red);">Leitura automática indisponível neste servidor</h3>
-        <p>As bibliotecas de leitura (PDF/OCR) não estão instaladas aqui — por isso nada foi extraído.
-            Em um servidor de demonstração enxuto isso é esperado.</p>
-        <p class="dica-cabecalho">Para habilitar: <code>pip install pdfplumber pytesseract Pillow</code>
-            (imagens exigem também o Tesseract com o idioma português).</p>
+        <h3 style="color:var(--accent-red);">Biblioteca de leitura não instalada</h3>
+        <p>A biblioteca Python que lê este tipo de arquivo não está instalada neste ambiente —
+            por isso nada foi extraído.</p>
+        <p class="dica-cabecalho">Para habilitar: <code>pip install pdfplumber pytesseract Pillow</code></p>
     </div>
 </div>
 {% else %}
