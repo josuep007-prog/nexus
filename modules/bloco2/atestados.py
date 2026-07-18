@@ -26,7 +26,8 @@ def extensao_permitida(nome_arquivo: str) -> bool:
 
 def criar_solicitacao_atestado(cliente_cnpj, cliente_nome, funcionario_nome,
                                 arquivo_bytes: bytes, nome_arquivo_original: str,
-                                canal_origem="web", observacoes=None) -> Solicitacao:
+                                canal_origem="web", observacoes=None,
+                                expectativa_conclusao=None) -> Solicitacao:
     """
     Cria a solicitação de lançamento de atestado, salva o arquivo recebido
     (PDF ou imagem) e deixa tudo pronto na fila de validação — sem tentar
@@ -46,7 +47,8 @@ def criar_solicitacao_atestado(cliente_cnpj, cliente_nome, funcionario_nome,
         cliente_cnpj=cliente_cnpj,
         cliente_nome=cliente_nome,
         funcionario_nome=funcionario_nome,
-        dados={"observacoes": observacoes} if observacoes else {},
+        dados={k: v for k, v in {"observacoes": observacoes,
+                                 "expectativa_conclusao": expectativa_conclusao}.items() if v},
     )
 
     caminho_destino = file_manager.salvar_anexo_recebido("atestados", sol.id, arquivo_bytes, nome_arquivo_original)

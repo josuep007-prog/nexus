@@ -203,7 +203,19 @@ arquivo precisa mudar.
 Tipos que mapeiam para uma solicitação do Onvio Portal do Cliente levam
 `"onvio_solicitacao"` no schema, e cada campo mapeável leva a chave
 `"onvio"` com o nome do campo equivalente lá (ver `docs/onvio_referencia.md`
-§2). Hoje alinhados: `ferias` ("Cálculo de Férias"), `rescisao` ("Cálculo de
+§2). Três automatismos evitam repetição e digitação à toa:
+- **"Assunto"** é derivado (`assunto_para_onvio`: título do tipo + empregado) —
+  o Onvio pede, mas obrigar o cliente a escrever seria digitação inútil;
+- **"Expectativa de conclusão"** é anexado a todos os tipos alinhados por um
+  laço no fim do registro (`_CAMPO_EXPECTATIVA`), em vez de repetir 12 vezes;
+- vários campos do nexus que caem no MESMO campo do Onvio (que tem menos
+  campos que nós) são **unidos numa linha só**, cada um rotulado — ex.:
+  `Observações = Idade: 17 · Pessoa com deficiência?: nao`.
+
+O formulário genérico **esconde o campo "Funcionário"** quando o schema já
+pede `empregado_nome` (senão perguntaria a mesma pessoa duas vezes); nesse
+caso a rota usa `empregado_nome` para preencher a coluna `funcionario_nome`,
+que alimenta listagens e dossiê. Hoje alinhados: `ferias` ("Cálculo de Férias"), `rescisao` ("Cálculo de
 Rescisão"), `outros` ("Solicitação Geral"). Campos sem `"onvio"` (ex.:
 `saldo_dias_direito` — que nem existe mais como campo digitado) são só do
 nexus, para a conferência CLT antes da validação humana.
@@ -324,6 +336,7 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 - ✅ Referência de Onvio/Domínio capturada da Central de Soluções (`docs/onvio_referencia.md`, `docs/dominio_referencia.md`) — achado: **sem API pública do Onvio para solicitações de DP**; RPA de tela no Domínio é redundante (ver seção "Decisão de arquitetura" no topo)
 - ✅ `integracao/dominio_rpa.py` reescrito do zero (sem código de outros projetos): motor de ROTEIRO por passos explícitos (`campo/texto/tecla/pausa`) — a navegação é explícita, não assume layout. Os `ROTEIRO_*` (admissão/férias/rescisão/alteração) nascem VAZIOS e a tela levanta `NotImplementedError` (cai pro manual) até serem transcritos da tela real do Domínio
 - ✅ **12 tipos alinhados ao Onvio**: Cálculo de Férias, Cálculo de Rescisão, Solicitação Geral, Cadastro de Colaborador (admissão/estagiário/aprendiz), Afastamento de Empregado (atestado/INSS/CAT/licenças) e Lançamento de Rubricas — metadado `"onvio"` por campo + `"onvio_campos"` (com `valor_fixo`) para telas dedicadas
+- ✅ Catálogo reagrupado pelo momento do contrato (entrada → férias → afastamentos → folha → mudanças → dependentes → disciplinar → rescisão → documentos), preservando a ordem declarada em `CATEGORIAS`
 - ✅ Dossiê do Empregado (`modules/dossie.py`, tabelas `empregados`/`empregado_historico`) + conferência CLT automática de férias (Cenário A conferido / Cenário B alerta manual, nunca bloqueia) — selo na fila de validação
 - ⬜ Integração real com Domínio (ROTEIRO_* ainda vazios), Onvio (sem API — via UI web/Playwright, não implementado), eSocial (stub)
 - ⬜ Extração de layout específico de documentos (além de CPF/PIS/datas)

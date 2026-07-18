@@ -41,10 +41,16 @@
     </div>
     {% endif %}
 
+    {# Tipos alinhados ao Onvio já pedem o empregado no próprio schema
+       (campo "empregado_nome"). Sem essa guarda, o formulário perguntaria a
+       MESMA pessoa duas vezes ("Funcionário" e "Empregado"). #}
+    {% set pede_empregado = schema.campos | selectattr('nome', 'equalto', 'empregado_nome') | list | length > 0 %}
+    {% if not pede_empregado %}
     <div class="campo">
         <label for="funcionario_nome">Funcionário <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
         <input type="text" id="funcionario_nome" name="funcionario_nome" value="{{ form.get('funcionario_nome', '') }}" placeholder="Nome completo do funcionário">
     </div>
+    {% endif %}
 
     {% for campo in schema.campos %}
     <div class="campo">

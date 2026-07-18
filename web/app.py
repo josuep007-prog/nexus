@@ -702,6 +702,7 @@ def novo_atestado():
             nome_arquivo_original=arquivo.filename,
             canal_origem="web",
             observacoes=observacoes or None,
+            expectativa_conclusao=request.form.get("expectativa_conclusao", "").strip() or None,
         )
         _registrar_etapa(sol, "recebimento")
         notificacoes.notificar_nova_solicitacao(sol, RÓTULOS_TIPO.get(sol.tipo))
@@ -768,6 +769,7 @@ def nova_admissao():
             data_admissao=data_admissao,
             salario=salario,
             horario_trabalho=horario_trabalho,
+            expectativa_conclusao=request.form.get("expectativa_conclusao", "").strip() or None,
         )
         _registrar_etapa(sol, "recebimento")
         notificacoes.notificar_nova_solicitacao(sol, RÓTULOS_TIPO.get(sol.tipo))
@@ -803,7 +805,11 @@ def nova_solicitacao_generica(bloco, tipo):
 
     if request.method == "POST":
         cliente_cnpj, cliente_nome = _dados_cliente_do_formulario()
-        funcionario_nome = request.form.get("funcionario_nome", "").strip()
+        # Tipos alinhados ao Onvio pedem o empregado no próprio schema
+        # ("empregado_nome") e não mostram o campo genérico — nesse caso ele
+        # alimenta a coluna funcionario_nome, usada nas listagens e no dossiê.
+        funcionario_nome = (request.form.get("funcionario_nome", "").strip()
+                            or request.form.get("empregado_nome", "").strip())
 
         erros = []
         if not cliente_nome:

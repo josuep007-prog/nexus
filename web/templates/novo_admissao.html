@@ -87,6 +87,12 @@
         <textarea id="observacoes" name="observacoes" placeholder="Qualquer informação adicional relevante para o analista...">{{ form.get('observacoes', '') }}</textarea>
     </div>
 
+    <div class="campo">
+        <label for="expectativa_conclusao">Precisa até quando? <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+        <input type="date" id="expectativa_conclusao" name="expectativa_conclusao" value="{{ form.get('expectativa_conclusao', '') }}">
+        <div class="ajuda">Admissão tem prazo legal — o registro precisa estar feito antes do 1º dia de trabalho.</div>
+    </div>
+
     <button type="submit" class="btn btn-primario">{{ "Reenviar para validação" if edicao_id else "Enviar documentos" }}</button>
 </form>
 {% endblock %}

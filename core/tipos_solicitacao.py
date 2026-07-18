@@ -214,6 +214,8 @@ REGISTRO_BLOCO2 = {
             {"nome": "salario", "rotulo": "Salário", "onvio": "Salário"},
             {"nome": "horario_trabalho", "rotulo": "Horário de trabalho", "onvio": "Jornada / horário"},
             {"nome": "observacoes", "rotulo": "Observações", "onvio": "Observações"},
+            {"nome": "expectativa_conclusao", "rotulo": "Precisa até quando?",
+             "onvio": "Expectativa de conclusão"},
         ],
         "validar": None,
         "rota_especial": "nova_admissao",  # tem fluxo dedicado com múltiplos anexos
@@ -228,6 +230,8 @@ REGISTRO_BLOCO2 = {
             {"nome": "funcionario_nome", "rotulo": "Funcionário", "onvio": "Empregado"},
             {"onvio": "Tipo do Afastamento", "valor_fixo": "Atestado médico"},
             {"nome": "observacoes", "rotulo": "Observações", "onvio": "Descrição"},
+            {"nome": "expectativa_conclusao", "rotulo": "Precisa até quando?",
+             "onvio": "Expectativa de conclusão"},
         ],
         "validar": None,
         "rota_especial": "novo_atestado",
@@ -299,9 +303,9 @@ REGISTRO_BLOCO2 = {
              "onvio": "Nome do colaborador"},
             {"nome": "empregado_cpf", "rotulo": "CPF", "tipo": "text", "obrigatorio": False, "onvio": "CPF"},
             {"nome": "idade", "rotulo": "Idade", "tipo": "number", "obrigatorio": True,
-             "onvio": "Observações (idade — regra do aprendiz)"},
+             "onvio": "Observações"},
             {"nome": "eh_pcd", "rotulo": "Pessoa com deficiência?", "tipo": "select", "obrigatorio": True,
-             "opcoes": ["nao", "sim"], "onvio": "Observações (PCD)"},
+             "opcoes": ["nao", "sim"], "onvio": "Observações"},
         ],
         "onvio_campos": [{"onvio": "Tipo de colaborador", "valor_fixo": "Empregado (contrato de aprendizagem)"}],
         "validar": regras_clt.validar_admissao_aprendiz,
@@ -355,7 +359,7 @@ REGISTRO_BLOCO2 = {
             {"nome": "data_inicio", "rotulo": "Data de início", "tipo": "date", "obrigatorio": True,
              "onvio": "Data de afastamento"},
             {"nome": "empresa_cidada", "rotulo": "Empresa aderiu ao Empresa Cidadã?", "tipo": "select", "obrigatorio": False,
-             "opcoes": ["nao", "sim"], "onvio": "Descrição"},
+             "opcoes": ["nao", "sim"], "onvio": "Observações"},
         ],
         "onvio_campos": [{"onvio": "Tipo do Afastamento", "valor_fixo": "Licença-maternidade"}],
         "validar": regras_clt.validar_licenca_maternidade,
@@ -371,7 +375,7 @@ REGISTRO_BLOCO2 = {
             {"nome": "data_inicio", "rotulo": "Data de início", "tipo": "date", "obrigatorio": True,
              "onvio": "Data de afastamento"},
             {"nome": "empresa_cidada", "rotulo": "Empresa aderiu ao Empresa Cidadã?", "tipo": "select", "obrigatorio": False,
-             "opcoes": ["nao", "sim"], "onvio": "Descrição"},
+             "opcoes": ["nao", "sim"], "onvio": "Observações"},
         ],
         "onvio_campos": [{"onvio": "Tipo do Afastamento", "valor_fixo": "Licença-paternidade"}],
         "validar": regras_clt.validar_licenca_paternidade,
@@ -402,6 +406,27 @@ REGISTRO_BLOCO2 = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Campo comum a TODA solicitação do Onvio: "Expectativa de conclusão".
+# Em vez de repetir em cada tipo, é anexado aqui aos que têm equivalente lá
+# (pulando os de formulário dedicado, cujos campos moram no template próprio).
+# ---------------------------------------------------------------------------
+_CAMPO_EXPECTATIVA = {
+    "nome": "expectativa_conclusao",
+    "rotulo": "Precisa até quando?",
+    "tipo": "date",
+    "obrigatorio": False,
+    "ajuda": "Opcional — se houver uma data limite para você.",
+    "onvio": "Expectativa de conclusão",
+}
+
+for _registro in (REGISTRO_BLOCO1, REGISTRO_BLOCO2):
+    for _schema in _registro.values():
+        if _schema.get("onvio_solicitacao") and not _schema.get("rota_especial"):
+            if not any(c.get("nome") == "expectativa_conclusao" for c in _schema["campos"]):
+                _schema["campos"].append(dict(_CAMPO_EXPECTATIVA))
+
+
 def schema_do_tipo(bloco: str, tipo: str) -> dict:
     registro = REGISTRO_BLOCO1 if bloco == "bloco1" else REGISTRO_BLOCO2
     return registro.get(tipo)
@@ -429,15 +454,34 @@ def onvio_destino(bloco: str, tipo: str):
     return schema.get("onvio_solicitacao") if schema else None
 
 
+def assunto_para_onvio(bloco: str, tipo: str, dados: dict):
+    """Texto do campo "Assunto" do Onvio, derivado do tipo + empregado.
+
+    O Onvio pede um assunto em toda solicitação, mas obrigar o cliente a
+    escrever isso seria digitação à toa — o resumo é sempre "tipo + de quem".
+    """
+    schema = schema_do_tipo(bloco, tipo) or {}
+    titulo = schema.get("titulo", tipo)
+    dados = dados or {}
+    quem = (dados.get("empregado_nome") or dados.get("funcionario_nome") or "").strip()
+    return f"{titulo} — {quem}" if quem else titulo
+
+
 def campos_para_onvio(bloco: str, tipo: str, dados: dict):
     """Monta o de-para para o repasse: [{rotulo_onvio, rotulo_nexus, valor}, ...].
 
-    Duas fontes, nessa ordem:
-    1. `campos` do formulário que tenham a chave "onvio" (os sem "onvio" são de
+    Fontes, nessa ordem:
+    1. "Assunto" derivado automaticamente (ver `assunto_para_onvio`), a menos
+       que o tipo já tenha um campo próprio mapeado para Assunto;
+    2. `campos` do formulário que tenham a chave "onvio" (os sem "onvio" são de
        uso interno do nexus, como os dados de conferência CLT);
-    2. `onvio_campos` — usado por tipos com formulário DEDICADO (admissão,
+    3. `onvio_campos` — usado por tipos com formulário DEDICADO (admissão,
        atestado), cujos `campos` ficam vazios no registro, e para valores fixos
        (ex.: "Tipo do Afastamento" já é determinado pelo tipo da solicitação).
+
+    Quando vários campos do nexus caem no MESMO campo do Onvio (que tem menos
+    campos que nós), eles são unidos numa linha só, cada um rotulado — assim o
+    analista cola um texto que faz sentido em vez de ver linhas repetidas.
 
     Campos em branco entram na lista de propósito, para o analista enxergar o
     que ficou faltando antes de lançar no Onvio.
@@ -446,20 +490,34 @@ def campos_para_onvio(bloco: str, tipo: str, dados: dict):
     if not schema:
         return []
     dados = dados or {}
-    linhas = []
-
-    def _linha(rotulo_onvio, rotulo_nexus, valor):
-        linhas.append({"rotulo_onvio": rotulo_onvio, "rotulo_nexus": rotulo_nexus, "valor": valor})
+    coletados = []  # (rotulo_onvio, rotulo_nexus, valor)
 
     for campo in schema.get("campos", []):
         if campo.get("onvio"):
-            _linha(campo["onvio"], campo["rotulo"], dados.get(campo["nome"], ""))
+            coletados.append((campo["onvio"], campo["rotulo"], dados.get(campo["nome"], "")))
 
     for extra in schema.get("onvio_campos", []):
-        if "valor_fixo" in extra:
-            _linha(extra["onvio"], extra.get("rotulo", extra["onvio"]), extra["valor_fixo"])
+        rotulo = extra.get("rotulo", extra["onvio"])
+        valor = extra["valor_fixo"] if "valor_fixo" in extra else dados.get(extra["nome"], "")
+        coletados.append((extra["onvio"], rotulo, valor))
+
+    if not any(rot_onvio == "Assunto" for rot_onvio, _, _ in coletados):
+        coletados.insert(0, ("Assunto", "Assunto (automático)", assunto_para_onvio(bloco, tipo, dados)))
+
+    # Une os que caem no mesmo campo do Onvio, preservando a ordem de aparição.
+    agrupado = {}
+    for rotulo_onvio, rotulo_nexus, valor in coletados:
+        agrupado.setdefault(rotulo_onvio, []).append((rotulo_nexus, valor))
+
+    linhas = []
+    for rotulo_onvio, partes in agrupado.items():
+        if len(partes) == 1:
+            rotulo_nexus, valor = partes[0]
         else:
-            _linha(extra["onvio"], extra.get("rotulo", extra["onvio"]), dados.get(extra["nome"], ""))
+            # ex.: "Idade: 17 · Pessoa com deficiência: nao"
+            rotulo_nexus = " · ".join(p[0] for p in partes)
+            valor = " · ".join(f"{rot}: {val}" for rot, val in partes if val)
+        linhas.append({"rotulo_onvio": rotulo_onvio, "rotulo_nexus": rotulo_nexus, "valor": valor})
     return linhas
 
 
@@ -467,27 +525,38 @@ def campos_para_onvio(bloco: str, tipo: str, dados: dict):
 # Agrupamento por categoria (só pra organização visual do catálogo web —
 # não afeta bloco/workflow/validação, que continuam vindo do registro acima).
 # ---------------------------------------------------------------------------
+# Grupos pensados pelo MOMENTO DO CONTRATO, na ordem em que acontecem na vida
+# do empregado: entra → tira férias → se afasta → recebe → muda algo → sai.
+# Cada grupo junta só coisas do mesmo assunto (antes "Férias e jornada" misturava
+# férias com transferência de local, e benefício estava dentro de folha).
 CATEGORIAS = {
-    "Admissão e desligamento": ["admissao", "admissao_estagiario", "admissao_aprendiz", "rescisao"],
-    "Férias e jornada": ["ferias", "alteracao_jornada", "transferencia_local"],
-    "Folha de pagamento": ["folha_sem_variaveis", "folha_com_variaveis", "decimo_terceiro",
-                           "folha_adiantamento", "rpa", "alteracao_beneficio"],
-    "Afastamentos e saúde": ["afastamento_inss", "cat", "exame_ocupacional", "atestado",
-                             "licenca_maternidade", "licenca_paternidade"],
-    "Cadastro e dependentes": ["alteracao_cadastral", "inclusao_dependente", "exclusao_dependente"],
-    "Disciplinar": ["advertencia", "suspensao"],
-    "Documentos e relatórios": ["declaracao", "ppp", "cnd", "relatorio_rotina"],
+    "Admissão (entrada de pessoal)": ["admissao", "admissao_estagiario", "admissao_aprendiz"],
+    "Férias": ["ferias"],
+    "Afastamentos e saúde": ["atestado", "afastamento_inss", "cat",
+                             "licenca_maternidade", "licenca_paternidade", "exame_ocupacional"],
+    "Folha de pagamento": ["folha_sem_variaveis", "folha_com_variaveis", "folha_adiantamento",
+                           "decimo_terceiro", "rpa"],
+    "Mudanças no contrato": ["alteracao_cadastral", "alteracao_jornada", "alteracao_beneficio",
+                             "transferencia_local"],
+    "Dependentes": ["inclusao_dependente", "exclusao_dependente"],
+    "Medidas disciplinares": ["advertencia", "suspensao"],
+    "Rescisão (saída de pessoal)": ["rescisao"],
+    "Documentos e certidões": ["declaracao", "ppp", "cnd", "relatorio_rotina"],
     "Outros": ["outros"],
 }
 
 
 def catalogo_por_categoria():
-    """Retorna [(nome_categoria, [(bloco, tipo, schema), ...]), ...] pra exibição agrupada no catálogo."""
+    """Retorna [(nome_categoria, [(bloco, tipo, schema), ...]), ...] pra exibição agrupada no catálogo.
+
+    Preserva a ORDEM declarada em CATEGORIAS (não reordena alfabeticamente):
+    dentro de cada grupo os tipos estão na sequência que faz sentido pra quem
+    procura (ex.: na folha, do fechamento normal até o RPA).
+    """
     tipo_para_item = {tipo: (bloco, tipo, schema) for bloco, tipo, schema in catalogo_completo()}
     grupos = []
     for categoria, tipos in CATEGORIAS.items():
-        itens = sorted((tipo_para_item[tipo] for tipo in tipos if tipo in tipo_para_item),
-                       key=lambda item: item[2]["titulo"])
+        itens = [tipo_para_item[tipo] for tipo in tipos if tipo in tipo_para_item]
         if itens:
             grupos.append((categoria, itens))
     return grupos

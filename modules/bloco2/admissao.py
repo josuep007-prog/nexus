@@ -21,7 +21,8 @@ from utils import file_manager
 def criar_solicitacao_admissao(cliente_cnpj, cliente_nome, funcionario_nome,
                                 arquivos, canal_origem="web", observacoes=None,
                                 cargo=None, departamento=None, data_admissao=None,
-                                salario=None, horario_trabalho=None):
+                                salario=None, horario_trabalho=None,
+                                expectativa_conclusao=None):
     """
     Cria a solicitação de admissão, salva todos os documentos enviados,
     roda a extração automática e a validação das regras CLT.
@@ -59,6 +60,7 @@ def criar_solicitacao_admissao(cliente_cnpj, cliente_nome, funcionario_nome,
         "data_admissao": data_admissao,
         "salario": salario,
         "horario_trabalho": horario_trabalho,
+        "expectativa_conclusao": expectativa_conclusao,
     }
     sol.atualizar_dados({k: v for k, v in dados_cadastrais.items() if v})
 
