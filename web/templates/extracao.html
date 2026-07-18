@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block titulo %}Calibrar extração · Automação DP{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Ferramenta</div>
+        <h1>Calibrar extração de documentos</h1>
+        <p class="descricao">Suba um documento de exemplo e veja o que o sistema consegue ler dele.
+            Serve para descobrir quais <strong>rótulos</strong> os documentos do escritório usam —
+            quanto mais campos a extração acerta, menos o cliente digita.</p>
+    </div>
+</div>
+
+<div class="caixa-aviso" style="margin-bottom:18px;">
+    🔒 O documento é analisado e <strong>descartado na hora</strong> — não fica salvo no sistema
+    nem vira solicitação. Ainda assim, prefira testar com um documento de dados fictícios.
+</div>
+
+<div class="form-card" style="max-width:100%; margin-bottom:22px;">
+    <form method="post" enctype="multipart/form-data">
+        <div class="campo">
+            <label for="tipo">Testar como qual tipo de solicitação</label>
+            <select id="tipo" name="tipo">
+                {% for t in tipos %}
+                <option value="{{ t }}" {{ 'selected' if t == tipo_escolhido }}>{{ rotulo_tipo(t) }}</option>
+                {% endfor %}
+            </select>
+            <div class="ajuda">Cada tipo procura um conjunto de campos diferente.</div>
+        </div>
+
+        <div class="campo">
+            <label>Documento</label>
+            <div class="dropzone">
+                <input type="file" name="documento" accept=".pdf,.png,.jpg,.jpeg">
+                <div class="icone-arquivo">[ ↑ ]</div>
+                <div class="instrucao">Clique ou arraste a ficha de registro, admissão, atestado...</div>
+                <div class="nome-arquivo"></div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primario">Analisar documento</button>
+    </form>
+</div>
+
+{% if relatorio %}
+{% set r = relatorio %}
+
+{% if r.falha_leitura == 'pdf_sem_camada_de_texto' %}
+<div class="painel" style="margin-bottom:20px;">
+    <div class="acordeao-corpo">
+        <h3 style="color:var(--accent-red);">Não foi possível ler este PDF</h3>
+        <p>Ele é um <strong>PDF escaneado</strong> — por dentro é uma imagem, não texto.
+            É por isso que nada foi extraído.</p>
+        <p class="dica-cabecalho">O que fazer:</p>
+        <ul>
+            <li>Peça o documento como <strong>foto/JPG</strong> — imagens passam por OCR e funcionam.</li>
+            <li>Ou peça o PDF gerado pelo sistema de origem (não digitalizado).</li>
+        </ul>
+    </div>
+</div>
+{% elif r.falha_leitura == 'sem_biblioteca' %}
+<div class="painel" style="margin-bottom:20px;">
+    <div class="acordeao-corpo">
+        <h3 style="color:var(--accent-red);">Leitura automática indisponível neste servidor</h3>
+        <p>As bibliotecas de leitura (PDF/OCR) não estão instaladas aqui — por isso nada foi extraído.
+            Em um servidor de demonstração enxuto isso é esperado.</p>
+        <p class="dica-cabecalho">Para habilitar: <code>pip install pdfplumber pytesseract Pillow</code>
+            (imagens exigem também o Tesseract com o idioma português).</p>
+    </div>
+</div>
+{% else %}
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="valor mono">{{ r.total_achados }}/{{ r.total_campos }}</div>
+        <div class="rotulo">Campos preenchidos automaticamente</div>
+    </div>
+    <div class="stat-card destaque">
+        <div class="valor mono">{{ r.faltando|length }}</div>
+        <div class="rotulo">Não encontrados</div>
+    </div>
+    <div class="stat-card">
+        <div class="valor mono">{{ r.recusados|length }}</div>
+        <div class="rotulo">Recusados na validação</div>
+    </div>
+    <div class="stat-card">
+        <div class="valor mono">{{ r.tamanho_texto }}</div>
+        <div class="rotulo">Caracteres lidos de {{ nome_arquivo }}</div>
+    </div>
+</div>
+
+{% if r.achados %}
+<div class="painel" style="margin-bottom:18px;">
+    <div class="painel-cabecalho"><h3>✓ Encontrados</h3></div>
+    <div class="tabela-simples">
+        {% for campo, valor in r.achados.items() %}
+        <div class="linha-tabela"><span>{{ campo }}</span><strong class="mono">{{ valor }}</strong></div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if r.recusados %}
+<div class="painel" style="margin-bottom:18px;">
+    <div class="painel-cabecalho">
+        <h3>✕ Recusados</h3>
+        <span class="dica-cabecalho">achou algo, mas não passou na validação — não entra como dado bom</span>
+    </div>
+    <div class="tabela-simples">
+        {% for campo, motivo in r.recusados.items() %}
+        <div class="linha-tabela"><span>{{ campo }}</span><span style="color:var(--accent-red);">{{ motivo }}</span></div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if r.faltando %}
+<div class="painel" style="margin-bottom:18px;">
+    <div class="painel-cabecalho">
+        <h3>– Não encontrados</h3>
+        <span class="dica-cabecalho">se o campo EXISTE no documento, veja abaixo como ele é chamado</span>
+    </div>
+    <div class="tabela-simples">
+        {% for item in r.faltando %}
+        <div class="linha-tabela">
+            <span>{{ item.campo }}</span>
+            <span class="dica-cabecalho">procurei por: {{ item.rotulos[:5]|join(', ') }}{{ '...' if item.rotulos|length > 5 }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="acordeao-corpo" style="border-top:1px solid var(--border-subtle);">
+        <strong>Achou algum destes no texto abaixo com outro nome?</strong>
+        Me diga qual campo e qual rótulo o documento usa (ex.: “salário aparece como
+        <em>Vencimento base</em>”) que eu acrescento na lista — aí ele passa a ser extraído sozinho.
+    </div>
+</div>
+{% endif %}
+
+<details class="acordeao">
+    <summary class="acordeao-resumo">
+        <span class="seta" aria-hidden="true">›</span>
+        <span class="acordeao-titulo">Ver o texto lido do documento</span>
+        <span class="acordeao-cliente">use para descobrir os rótulos que faltaram</span>
+    </summary>
+    <div class="acordeao-corpo">
+        <pre style="white-space:pre-wrap; word-break:break-word; font-family:'JetBrains Mono',monospace; font-size:12px; background:var(--surface-inset); padding:14px; border-radius:8px; max-height:420px; overflow:auto;">{{ r.texto }}</pre>
+    </div>
+</details>
+
+{% endif %}
+{% endif %}
+{% endblock %}

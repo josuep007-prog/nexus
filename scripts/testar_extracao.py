@@ -45,7 +45,9 @@ def main():
 
     print(f"\n=== {caminho.name} (tipo: {tipo}) ===\n")
 
-    texto, motivo = extracao._ler_documento(str(caminho))
+    # Mesma análise que a tela /extracao (gestor/admin) usa — uma lógica só.
+    relatorio = extracao.diagnosticar(str(caminho), tipo)
+    texto, motivo = relatorio["texto"], relatorio["falha_leitura"]
     if motivo == extracao.PDF_SEM_TEXTO:
         print("⚠  PDF SEM CAMADA DE TEXTO (escaneado).")
         print("   O pdfplumber não lê imagem. Para esses casos é preciso OCR na")
@@ -64,36 +66,28 @@ def main():
         print(texto)
         print("-" * 60 + "\n")
 
-    dados = extracao.extrair_dados(str(caminho), tipo)
-    diag = dados.pop("_diagnostico", {})
-
     print("ENCONTRADOS:")
-    if dados:
-        for campo, valor in sorted(dados.items()):
-            if campo == "texto_bruto":
-                continue
+    if relatorio["achados"]:
+        for campo, valor in sorted(relatorio["achados"].items()):
             print(f"   ✓ {campo:20} = {valor}")
     else:
         print("   (nenhum)")
 
-    recusados = diag.get("recusados") or {}
-    if recusados:
+    if relatorio["recusados"]:
         print("\nRECUSADOS (achou, mas não passou na validação):")
-        for campo, motivo_recusa in recusados.items():
+        for campo, motivo_recusa in relatorio["recusados"].items():
             print(f"   ✕ {campo:20} {motivo_recusa}")
 
-    faltando = diag.get("faltando") or []
-    if faltando:
+    if relatorio["faltando"]:
         print("\nNÃO ENCONTRADOS:")
-        for campo in faltando:
-            rotulos = ", ".join(extracao._ROTULOS.get(campo, [])[:4])
-            print(f"   – {campo:20} (procurei por: {rotulos}...)")
+        for item in relatorio["faltando"]:
+            rotulos = ", ".join(item["rotulos"][:4])
+            print(f"   – {item['campo']:20} (procurei por: {rotulos}...)")
         print("\n   Se algum destes EXISTE no documento, veja com --texto qual rótulo")
         print("   ele usa e acrescente em _ROTULOS (modules/bloco2/extracao.py).")
 
-    total = len(extracao._ROTULOS)
-    achou = len([c for c in dados if c in extracao._ROTULOS])
-    print(f"\nResumo: {achou}/{total} campos preenchidos automaticamente.\n")
+    print(f"\nResumo: {relatorio['total_achados']}/{relatorio['total_campos']} "
+          "campos preenchidos automaticamente.\n")
 
 
 if __name__ == "__main__":

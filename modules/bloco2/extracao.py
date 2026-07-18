@@ -154,11 +154,19 @@ def _valor_para_decimal(valor: str):
 
 
 def _texto_limpo(valor: str):
-    """Limpa o valor capturado depois do rótulo (corta em outro rótulo da mesma linha)."""
+    """Limpa o valor capturado depois do rótulo (corta no próximo rótulo da linha).
+
+    Fichas colocam vários campos na mesma linha ("Banco: 341 Agência: 4521
+    Conta: 12345-6"). Cortamos no PRÓXIMO RÓTULO CONHECIDO seguido de ':' —
+    não em "qualquer palavra com dois-pontos", que quebraria valores legítimos
+    como "Horário: 08:00 as 17:00". Exigir o ':' também protege valores que
+    só contêm a palavra ("Cargo: Analista de Banco" não vira corte em "Banco").
+    """
     valor = (valor or "").strip(" \t:;-–—|")
-    # Em fichas, dois campos dividem a linha: "CPF: 123...   PIS/PASEP: 456..."
-    # Corta no 2º rótulo — que pode ter barra ou hífen ("PIS/PASEP", "CTPS-Série").
-    valor = re.split(r"\s{2,}[A-ZÀ-Ú][\wÀ-ú\./\- ]{1,}\s*:", valor)[0]
+    normalizado = _sem_acento_minusculo(valor)  # mesma extensão do original
+    corte = _PADRAO_PROXIMO_ROTULO.search(normalizado)
+    if corte:
+        valor = valor[:corte.start()]
     valor = re.sub(r"\s+", " ", valor).strip()
     return valor or None
 
@@ -189,6 +197,14 @@ _ROTULOS = {
     "agencia": ["agencia"],
     "conta": ["conta corrente", "conta salario", "conta"],
 }
+
+# Todos os rótulos conhecidos, do mais longo para o mais curto (para "conta
+# corrente" vencer "conta"). Usado por _texto_limpo para saber onde termina o
+# valor de um campo quando a linha tem vários campos.
+_TODOS_ROTULOS = sorted({r for lista in _ROTULOS.values() for r in lista}, key=len, reverse=True)
+_PADRAO_PROXIMO_ROTULO = re.compile(
+    r"\s+(?:" + "|".join(re.escape(r) for r in _TODOS_ROTULOS) + r")\s*[:\-]"
+)
 
 # Como tratar o valor de cada campo depois de capturado.
 _TRATAMENTO = {
@@ -336,6 +352,53 @@ _EXTRATORES_POR_TIPO = {
     "licenca_maternidade": _extrair_campos_afastamento,
     "licenca_paternidade": _extrair_campos_afastamento,
 }
+
+
+def tipos_com_extrator():
+    """Tipos de solicitação que têm extrator definido (para a tela de calibração)."""
+    return sorted(_EXTRATORES_POR_TIPO)
+
+
+def rotulos_do_campo(campo: str):
+    """Sinônimos procurados para um campo — mostrado na calibração."""
+    return list(_ROTULOS.get(campo, []))
+
+
+def diagnosticar(caminho_arquivo: str, tipo_solicitacao: str = "admissao") -> dict:
+    """Roda a extração e devolve um relatório completo, para CALIBRAÇÃO.
+
+    Usado pela tela `/extracao` (gestor/admin) e por scripts/testar_extracao.py —
+    os dois compartilham esta função, sem reimplementar a análise.
+
+    -> {texto, tamanho_texto, falha_leitura, achados, recusados, faltando,
+        total_campos, total_achados}
+    """
+    texto, falha = _ler_documento(caminho_arquivo)
+    relatorio = {
+        "texto": texto,
+        "tamanho_texto": len(texto or ""),
+        "falha_leitura": falha,
+        "achados": {},
+        "recusados": {},
+        "faltando": [],
+        "total_campos": len(_ROTULOS),
+        "total_achados": 0,
+    }
+    if not texto:
+        return relatorio
+
+    dados = extrair_dados(caminho_arquivo, tipo_solicitacao)
+    diagnostico = dados.pop("_diagnostico", {})
+    dados.pop("texto_bruto", None)
+
+    relatorio["achados"] = {k: v for k, v in dados.items() if not k.startswith("_")}
+    relatorio["recusados"] = diagnostico.get("recusados") or {}
+    relatorio["faltando"] = [
+        {"campo": campo, "rotulos": rotulos_do_campo(campo)}
+        for campo in (diagnostico.get("faltando") or [])
+    ]
+    relatorio["total_achados"] = len([c for c in relatorio["achados"] if c in _ROTULOS])
+    return relatorio
 
 
 def extrair_dados(caminho_arquivo: str, tipo_solicitacao: str) -> dict:

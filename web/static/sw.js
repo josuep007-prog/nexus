@@ -5,7 +5,7 @@
 // As páginas (solicitações, validações etc.) sempre buscam da rede, porque
 // os dados mudam o tempo todo — cachear isso daria informação desatualizada.
 
-const CACHE_NAME = "automacao-dp-shell-v12";
+const CACHE_NAME = "automacao-dp-shell-v13";
 const ARQUIVOS_SHELL = [
     "/static/style.css",
     "/static/app.js",

@@ -263,10 +263,17 @@ padrão de `conferir_ferias`, e registre em `_CONFERENCIAS`.
   ("Nome: X", "Cargo: Y"), com sinônimos por campo em `_ROTULOS` — padrão
   universal de ficha de registro/admissão, que funciona em qualquer layout.
   **Nunca decore a posição de um campo num modelo específico** (quebra no
-  primeiro documento diferente) e não invente formato: para calibrar com
-  documento real use `python scripts/testar_extracao.py <arquivo>`, veja o que
-  faltou e acrescente o rótulo que aquele documento usa.
+  primeiro documento diferente) e não invente formato. Para calibrar com
+  documento real: página **`/extracao`** (gestor/admin) ou
+  `python scripts/testar_extracao.py <arquivo>` — as duas usam a mesma
+  `extracao.diagnosticar()`. Veja o que faltou e acrescente o rótulo em
+  `_ROTULOS`. O documento enviado em `/extracao` é analisado num arquivo
+  temporário e **apagado na hora** (nunca vira anexo nem registro).
   Três regras que o módulo já garante e devem ser mantidas:
+  0. o valor de um campo termina no PRÓXIMO RÓTULO CONHECIDO seguido de ':'
+     (fichas põem vários campos na mesma linha e o pdfplumber normaliza os
+     espaços) — cortar em "qualquer palavra com dois-pontos" quebraria
+     "Horário: 08:00 as 17:00";
   1. valor passa por normalização (data→ISO, R$→decimal) e, quando há regra
      (CPF/PIS), por dígito verificador — **dado ruim vira pendência, não
      entra como se fosse bom**;
@@ -318,6 +325,7 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 - ✅ Módulo de atestados (só recebimento de PDF/PNG)
 - ✅ Módulo de admissão (múltiplos anexos + extração por rótulo + validação CLT completa)
 - ✅ **Extração de documentos por rótulo** (`extracao.py`): acha os 14 campos mínimos da admissão numa ficha de registro, normaliza (data→ISO, R$→decimal), valida dígito de CPF/PIS (dado ruim vira pendência) e reporta o motivo quando não lê (PDF escaneado, OCR ausente). Calibrar com `scripts/testar_extracao.py`
+- ✅ Página `/extracao` (gestor/admin): sobe um documento de exemplo e vê o que foi lido, o que faltou (com os rótulos procurados) e por quê — o arquivo é descartado na hora
 - ✅ Catálogo de solicitações na web com busca em tempo real (tolerante a acento/ordem), agrupado por categoria
 - ✅ PWA mobile (Android) instalável
 - ✅ Login com dois tipos de conta (funcionário/cliente) na web; cliente vê só o próprio CNPJ

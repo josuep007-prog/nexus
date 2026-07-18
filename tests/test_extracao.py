@@ -55,6 +55,29 @@ def test_dois_campos_na_mesma_linha_nao_se_misturam():
     assert dados["pis_nis"] == "12012345672"
 
 
+def test_varios_campos_na_mesma_linha_com_espaco_simples():
+    """Regressão: o pdfplumber normaliza espaços, então 'Banco: 341 Agência: 4521
+    Conta corrente: 12345-6' chega numa linha só com espaço SIMPLES. Cada valor
+    tem que parar no próximo rótulo — antes o 'banco' engolia a linha inteira."""
+    dados = extracao.extrair_campos("Banco: 341 Agencia: 4521 Conta corrente: 12345-6")
+    assert dados["banco"] == "341"
+    assert dados["agencia"] == "4521"
+    assert dados["conta"] == "12345-6"
+
+
+def test_valor_com_dois_pontos_nao_e_cortado():
+    """'Horário: 08:00 as 17:00' — só corta em RÓTULO CONHECIDO seguido de ':',
+    não em qualquer coisa com dois-pontos."""
+    dados = extracao.extrair_campos("Horario de trabalho: 08:00 as 17:00")
+    assert dados["horario_trabalho"] == "08:00 as 17:00"
+
+
+def test_valor_que_contem_palavra_de_rotulo_nao_e_cortado():
+    """'Analista de Banco' não pode virar corte — o corte exige o ':' depois."""
+    dados = extracao.extrair_campos("Cargo: Analista de Banco")
+    assert dados["cargo"] == "Analista de Banco"
+
+
 def test_cpf_invalido_e_recusado_em_vez_de_entregue():
     """Dado ruim não pode entrar como se fosse bom — vira pendência pro analista."""
     dados = extracao.extrair_campos("Nome: Fulano\nCPF: 111.111.111-11")

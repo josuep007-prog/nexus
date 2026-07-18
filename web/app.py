@@ -18,6 +18,7 @@ import json
 import os
 import secrets
 import sys
+import tempfile
 from datetime import datetime, timedelta, date
 from pathlib import Path
 
@@ -48,6 +49,7 @@ from modules.bloco2 import recebimento_anexo as bloco2_recebimento
 from modules.bloco2 import atestados as bloco2_atestados
 from modules.bloco2 import admissao as bloco2_admissao
 from modules.bloco2 import generico as bloco2_generico
+from modules.bloco2 import extracao as bloco2_extracao
 from modules import fila_processamento
 from modules.rotinas import alertas as rotina_alertas
 from core.workflow import (
@@ -84,7 +86,7 @@ ROTAS_NIVEL_MINIMO = {
     "alertas": NIVEL_FUNCIONARIO, "resolver_alerta": NIVEL_FUNCIONARIO,
     "obrigacoes": NIVEL_FUNCIONARIO, "marcar_obrigacao_web": NIVEL_FUNCIONARIO,
     # Gerencial — gestor e admin
-    "relatorios": NIVEL_GESTOR,
+    "relatorios": NIVEL_GESTOR, "calibrar_extracao": NIVEL_GESTOR,
     "usuarios": NIVEL_GESTOR, "criar_usuario_web": NIVEL_GESTOR,
     "alternar_usuario_ativo": NIVEL_GESTOR, "resetar_senha_usuario": NIVEL_GESTOR,
     "salvar_email_usuario": NIVEL_GESTOR, "adicionar_empresa": NIVEL_GESTOR,
@@ -1222,6 +1224,53 @@ def relatorios():
                            por_status=por_status,
                            tempo_medio_horas=tempo_medio_horas,
                            por_analista=sorted(por_analista.items(), key=lambda kv: -kv[1]["total"]))
+
+
+# ---------------------------------------------------------------------------
+# Calibração da extração (gestor/admin): sobe um documento de exemplo e vê o
+# que a extração conseguiu ler, o que faltou e por quê — para ajustar os
+# rótulos de modules/bloco2/extracao.py ao vocabulário dos documentos reais.
+# ---------------------------------------------------------------------------
+@app.route("/extracao", methods=["GET", "POST"])
+def calibrar_extracao():
+    contexto = {
+        "tipos": bloco2_extracao.tipos_com_extrator(),
+        "tipo_escolhido": request.form.get("tipo") or "admissao",
+        "rotulo_tipo_titulo": RÓTULOS_TIPO,
+        "relatorio": None,
+        "nome_arquivo": None,
+    }
+
+    if request.method == "POST":
+        arquivo = request.files.get("documento")
+        if not arquivo or not arquivo.filename:
+            flash("Escolha um documento para testar.", "erro")
+            return render_template("extracao.html", **contexto)
+        if not _extensao_permitida_global(arquivo.filename):
+            flash(f"Formato não permitido: {arquivo.filename}.", "erro")
+            return render_template("extracao.html", **contexto)
+
+        # O documento é analisado e DESCARTADO — nada é gravado no banco nem na
+        # pasta de anexos. É um teste, e o arquivo pode conter dado pessoal real.
+        sufixo = Path(arquivo.filename).suffix.lower()
+        temporario = tempfile.NamedTemporaryFile(delete=False, suffix=sufixo)
+        try:
+            arquivo.save(temporario.name)
+            temporario.close()
+            contexto["relatorio"] = bloco2_extracao.diagnosticar(
+                temporario.name, contexto["tipo_escolhido"])
+            contexto["nome_arquivo"] = arquivo.filename
+        except ValueError as exc:  # formato sem leitor (ex.: .zip, .xlsx)
+            flash(str(exc), "erro")
+        except Exception as exc:  # noqa: BLE001
+            flash(f"Não foi possível analisar o documento: {exc}", "erro")
+        finally:
+            try:
+                os.unlink(temporario.name)
+            except OSError:
+                pass
+
+    return render_template("extracao.html", **contexto)
 
 
 # ---------------------------------------------------------------------------
