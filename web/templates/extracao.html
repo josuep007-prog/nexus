@@ -88,6 +88,16 @@
 </div>
 {% else %}
 
+{% if r.ocr_sem_portugues %}
+<div class="caixa-aviso" style="margin-bottom:18px;">
+    <strong>⚠ OCR rodando em inglês.</strong> O Tesseract está instalado, mas sem o pacote de
+    <strong>português</strong> — em documento brasileiro isso erra acentos e piora bastante a leitura.
+    Para corrigir: rode o instalador do Tesseract de novo e, em
+    <em>Additional language data</em>, marque <strong>Portuguese</strong>
+    (ou baixe <code>por.traineddata</code> para a pasta <code>tessdata</code>).
+</div>
+{% endif %}
+
 <div class="stats-row">
     <div class="stat-card">
         <div class="valor mono">{{ r.total_achados }}/{{ r.total_campos }}</div>

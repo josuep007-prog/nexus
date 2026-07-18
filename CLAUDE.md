@@ -285,7 +285,11 @@ padrão de `conferir_ferias`, e registre em `_CONFERENCIAS`.
      explícita. Os motivos de falha são DISTINTOS de propósito, porque a
      solução de cada um é diferente: `PDF_SEM_TEXTO` (escaneado),
      `SEM_OCR` (falta o binário do Tesseract — não resolve com pip) e
-     `SEM_BIBLIOTECA` (falta a lib Python);
+     `SEM_BIBLIOTECA` (falta a lib Python). O Tesseract é localizado sem
+     depender do PATH (`localizar_tesseract`: config.TESSERACT_CMD → PATH →
+     caminhos usuais do Windows) e, se o idioma `por` não estiver instalado,
+     cai para `eng` sinalizando `ocr_sem_portugues` (avisa que a precisão
+     cai, em vez de falhar);
   3. `_diagnostico` é removido antes de virar dado da solicitação.
 
 ## Como testar

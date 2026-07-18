@@ -93,6 +93,14 @@ ONVIO_TOKEN = ""      # NUNCA deixe token real hardcoded em produção; use vari
 DOMINIO_EXECUTAVEL_PATH = ""  # caminho do executável do Domínio na máquina, se necessário
 
 # ---------------------------------------------------------------------------
+# OCR (leitura de imagens). O Tesseract é um PROGRAMA do sistema, não um
+# pacote pip — e no Windows costuma ficar fora do PATH. Deixe vazio para o
+# sistema procurar nos lugares usuais; ou aponte o caminho completo aqui/por
+# variável de ambiente se estiver instalado em outro lugar.
+# ---------------------------------------------------------------------------
+TESSERACT_CMD = os.environ.get("TESSERACT_CMD", "")
+
+# ---------------------------------------------------------------------------
 # Uploads (segurança): tamanho máximo e extensões aceitas em qualquer envio
 # ---------------------------------------------------------------------------
 MAX_UPLOAD_MB = 10

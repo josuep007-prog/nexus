@@ -63,6 +63,50 @@ def _extrair_texto_pdf(caminho: Path):
     return (texto, None) if texto else ("", PDF_SEM_TEXTO)
 
 
+# Onde o Tesseract costuma ficar no Windows quando não foi posto no PATH
+# (o instalador oficial não adiciona por padrão). Evita exigir configuração.
+_CAMINHOS_TESSERACT = [
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    str(Path.home() / r"AppData\Local\Programs\Tesseract-OCR\tesseract.exe"),
+    str(Path.home() / r"AppData\Local\Tesseract-OCR\tesseract.exe"),
+]
+
+
+def localizar_tesseract():
+    """Caminho do executável do Tesseract, ou None. Ordem: config/env, PATH, locais usuais."""
+    import shutil
+    try:
+        import config
+        if config.TESSERACT_CMD and Path(config.TESSERACT_CMD).exists():
+            return config.TESSERACT_CMD
+    except Exception:  # noqa: BLE001
+        pass
+    no_path = shutil.which("tesseract")
+    if no_path:
+        return no_path
+    for caminho in _CAMINHOS_TESSERACT:
+        if Path(caminho).exists():
+            return caminho
+    return None
+
+
+def idiomas_ocr_disponiveis():
+    """Idiomas instalados no Tesseract (lista vazia se ele não estiver disponível)."""
+    try:
+        import pytesseract
+    except Exception:  # noqa: BLE001
+        return []
+    executavel = localizar_tesseract()
+    if not executavel:
+        return []
+    pytesseract.pytesseract.tesseract_cmd = executavel
+    try:
+        return list(pytesseract.get_languages(config=""))
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _extrair_texto_imagem(caminho: Path):
     """-> (texto, motivo_de_falha | None)"""
     try:
@@ -70,12 +114,24 @@ def _extrair_texto_imagem(caminho: Path):
         from PIL import Image
     except Exception:  # noqa: BLE001 - falta a lib Python
         return "", SEM_BIBLIOTECA
+
+    executavel = localizar_tesseract()
+    if not executavel:
+        # pytesseract instalado, mas o PROGRAMA Tesseract não existe na máquina.
+        # É instalação de sistema, não resolve com pip — por isso motivo próprio.
+        return "", SEM_OCR
+    pytesseract.pytesseract.tesseract_cmd = executavel
+
+    # Português dá melhor precisão em documento brasileiro (acentos), mas o
+    # instalador só traz inglês por padrão. Em vez de falhar, cai para o que
+    # existir — quem chama avisa que a precisão fica menor.
+    disponiveis = idiomas_ocr_disponiveis()
+    idioma = "por" if "por" in disponiveis else ("eng" if "eng" in disponiveis else None)
+    if idioma is None:
+        return "", SEM_OCR
     try:
-        return pytesseract.image_to_string(Image.open(caminho), lang="por").strip(), None
+        return pytesseract.image_to_string(Image.open(caminho), lang=idioma).strip(), None
     except Exception:  # noqa: BLE001
-        # Caso mais comum: pytesseract instalado, mas o PROGRAMA Tesseract não
-        # (TesseractNotFoundError) ou sem o idioma 'por'. É problema de sistema
-        # operacional, não de pip — por isso tem motivo próprio.
         return "", SEM_OCR
 
 
@@ -372,10 +428,16 @@ def diagnosticar(caminho_arquivo: str, tipo_solicitacao: str = "admissao") -> di
         total_campos, total_achados}
     """
     texto, falha = _ler_documento(caminho_arquivo)
+    eh_imagem = Path(caminho_arquivo).suffix.lower() != ".pdf"
+    idiomas = idiomas_ocr_disponiveis() if eh_imagem else []
     relatorio = {
         "texto": texto,
         "tamanho_texto": len(texto or ""),
         "falha_leitura": falha,
+        # Avisa (sem ser erro) que o OCR rodou em inglês: em documento
+        # brasileiro isso erra acentos e piora a leitura.
+        "ocr_sem_portugues": bool(eh_imagem and idiomas and "por" not in idiomas),
+        "caminho_tesseract": localizar_tesseract() if eh_imagem else None,
         "achados": {},
         "recusados": {},
         "faltando": [],
