@@ -200,48 +200,110 @@ REGISTRO_BLOCO1 = {
 REGISTRO_BLOCO2 = {
     "admissao": {
         "titulo": "Admissão",
-        "campos": [],
+        # Alinhado a "Cadastro de Colaborador" do Onvio (tipo Empregado).
+        "onvio_solicitacao": "Cadastro de Colaborador",
+        "campos": [],  # formulário dedicado (novo_admissao.html), com múltiplos anexos
+        # Como os campos vivem na tela dedicada, o de-para do repasse vem daqui.
+        "onvio_campos": [
+            {"onvio": "Tipo de colaborador", "valor_fixo": "Empregado"},
+            {"nome": "funcionario_nome", "rotulo": "Funcionário", "onvio": "Nome do colaborador"},
+            {"nome": "cpf", "rotulo": "CPF", "onvio": "CPF"},
+            {"nome": "cargo", "rotulo": "Cargo", "onvio": "Cargo"},
+            {"nome": "departamento", "rotulo": "Departamento", "onvio": "Departamento / setor"},
+            {"nome": "data_admissao", "rotulo": "Data de admissão", "onvio": "Data de admissão"},
+            {"nome": "salario", "rotulo": "Salário", "onvio": "Salário"},
+            {"nome": "horario_trabalho", "rotulo": "Horário de trabalho", "onvio": "Jornada / horário"},
+            {"nome": "observacoes", "rotulo": "Observações", "onvio": "Observações"},
+        ],
         "validar": None,
         "rota_especial": "nova_admissao",  # tem fluxo dedicado com múltiplos anexos
     },
     "atestado": {
         "titulo": "Atestado",
-        "campos": [],
+        # No Onvio, atestado entra como "Afastamento de Empregado".
+        "onvio_solicitacao": "Afastamento de Empregado",
+        "campos": [],  # formulário dedicado (novo_atestado.html)
+        # Como os campos vivem na tela dedicada, o de-para do repasse vem daqui.
+        "onvio_campos": [
+            {"nome": "funcionario_nome", "rotulo": "Funcionário", "onvio": "Empregado"},
+            {"onvio": "Tipo do Afastamento", "valor_fixo": "Atestado médico"},
+            {"nome": "observacoes", "rotulo": "Observações", "onvio": "Descrição"},
+        ],
         "validar": None,
         "rota_especial": "novo_atestado",
     },
     "afastamento_inss": {
         "titulo": "Afastamento por INSS (auxílio-doença)",
+        # Alinhado à solicitação "Afastamento de Empregado" do Onvio.
+        "onvio_solicitacao": "Afastamento de Empregado",
         "campos": [
-            {"nome": "data_inicio", "rotulo": "Data de início do afastamento", "tipo": "date", "obrigatorio": True},
-            {"nome": "motivo_afastamento", "rotulo": "Motivo / CID", "tipo": "text", "obrigatorio": True},
+            {"nome": "empregado_nome", "rotulo": "Empregado", "tipo": "text", "obrigatorio": True,
+             "onvio": "Empregado"},
+            {"nome": "empregado_cpf", "rotulo": "CPF do empregado", "tipo": "text", "obrigatorio": False,
+             "onvio": "Empregado (localização por CPF)"},
+            {"nome": "data_inicio", "rotulo": "Data de início do afastamento", "tipo": "date", "obrigatorio": True,
+             "onvio": "Data de afastamento"},
+            {"nome": "motivo_afastamento", "rotulo": "Motivo / CID", "tipo": "text", "obrigatorio": True,
+             "onvio": "Descrição"},
         ],
+        # O Onvio pede "Tipo do Afastamento"; aqui ele já vem do tipo escolhido.
+        "onvio_campos": [{"onvio": "Tipo do Afastamento", "valor_fixo": "Auxílio-doença (INSS)"}],
         "validar": regras_clt.validar_afastamento_inss,
     },
     "cat": {
         "titulo": "CAT — Comunicação de Acidente de Trabalho",
+        # No Onvio, acidente de trabalho entra em "Afastamento de Empregado",
+        # que abre os campos específicos de CAT.
+        "onvio_solicitacao": "Afastamento de Empregado",
         "campos": [
-            {"nome": "data_acidente", "rotulo": "Data do acidente", "tipo": "date", "obrigatorio": True},
-            {"nome": "data_comunicacao", "rotulo": "Data da comunicação", "tipo": "date", "obrigatorio": True},
-            {"nome": "descricao", "rotulo": "Descrição do acidente", "tipo": "textarea", "obrigatorio": False},
+            {"nome": "empregado_nome", "rotulo": "Empregado", "tipo": "text", "obrigatorio": True,
+             "onvio": "Empregado"},
+            {"nome": "empregado_cpf", "rotulo": "CPF do empregado", "tipo": "text", "obrigatorio": False,
+             "onvio": "Empregado (localização por CPF)"},
+            {"nome": "data_acidente", "rotulo": "Data do acidente", "tipo": "date", "obrigatorio": True,
+             "onvio": "Data de afastamento"},
+            {"nome": "data_comunicacao", "rotulo": "Data da comunicação", "tipo": "date", "obrigatorio": True,
+             "onvio": "Data da CAT"},
+            {"nome": "tipo_cat", "rotulo": "Tipo da CAT", "tipo": "select", "obrigatorio": False,
+             "opcoes": ["inicial", "reabertura", "comunicacao_obito"], "onvio": "Tipo da CAT"},
+            {"nome": "numero_cat", "rotulo": "Número da CAT", "tipo": "text", "obrigatorio": False,
+             "onvio": "Número da CAT"},
+            {"nome": "descricao", "rotulo": "Descrição do acidente", "tipo": "textarea", "obrigatorio": False,
+             "onvio": "Descrição"},
         ],
+        "onvio_campos": [{"onvio": "Tipo do Afastamento", "valor_fixo": "Acidente de trabalho"}],
         "validar": regras_clt.validar_cat,
     },
     "admissao_estagiario": {
         "titulo": "Admissão de estagiário",
+        # Alinhado a "Cadastro de Colaborador" do Onvio (tipo Estagiário).
+        "onvio_solicitacao": "Cadastro de Colaborador",
         "campos": [
-            {"nome": "instituicao_ensino", "rotulo": "Instituição de ensino", "tipo": "text", "obrigatorio": True},
-            {"nome": "carga_horaria_diaria", "rotulo": "Carga horária diária (h)", "tipo": "number", "obrigatorio": True},
+            {"nome": "empregado_nome", "rotulo": "Nome do estagiário", "tipo": "text", "obrigatorio": True,
+             "onvio": "Nome do colaborador"},
+            {"nome": "empregado_cpf", "rotulo": "CPF", "tipo": "text", "obrigatorio": False, "onvio": "CPF"},
+            {"nome": "instituicao_ensino", "rotulo": "Instituição de ensino", "tipo": "text", "obrigatorio": True,
+             "onvio": "Observações"},
+            {"nome": "carga_horaria_diaria", "rotulo": "Carga horária diária (h)", "tipo": "number", "obrigatorio": True,
+             "onvio": "Jornada / carga horária"},
         ],
+        "onvio_campos": [{"onvio": "Tipo de colaborador", "valor_fixo": "Estagiário"}],
         "validar": regras_clt.validar_admissao_estagiario,
     },
     "admissao_aprendiz": {
         "titulo": "Admissão de aprendiz",
+        # Alinhado a "Cadastro de Colaborador" do Onvio (aprendiz entra como Empregado).
+        "onvio_solicitacao": "Cadastro de Colaborador",
         "campos": [
-            {"nome": "idade", "rotulo": "Idade", "tipo": "number", "obrigatorio": True},
+            {"nome": "empregado_nome", "rotulo": "Nome do aprendiz", "tipo": "text", "obrigatorio": True,
+             "onvio": "Nome do colaborador"},
+            {"nome": "empregado_cpf", "rotulo": "CPF", "tipo": "text", "obrigatorio": False, "onvio": "CPF"},
+            {"nome": "idade", "rotulo": "Idade", "tipo": "number", "obrigatorio": True,
+             "onvio": "Observações (idade — regra do aprendiz)"},
             {"nome": "eh_pcd", "rotulo": "Pessoa com deficiência?", "tipo": "select", "obrigatorio": True,
-             "opcoes": ["nao", "sim"]},
+             "opcoes": ["nao", "sim"], "onvio": "Observações (PCD)"},
         ],
+        "onvio_campos": [{"onvio": "Tipo de colaborador", "valor_fixo": "Empregado (contrato de aprendizagem)"}],
         "validar": regras_clt.validar_admissao_aprendiz,
     },
     "inclusao_dependente": {
@@ -264,31 +326,54 @@ REGISTRO_BLOCO2 = {
     },
     "folha_com_variaveis": {
         "titulo": "Lançamento de valores na folha",
+        # Alinhado à solicitação "Lançamento de Rubricas" do Onvio. Atenção: lá o
+        # escritório precisa ter gerado as rubricas permitidas antes
+        # (Domínio > Utilitários > Lançamentos > Gerar Rubricas no ONVIO).
+        "onvio_solicitacao": "Lançamento de Rubricas",
         "campos": [
+            {"nome": "empregado_nome", "rotulo": "Empregado", "tipo": "text", "obrigatorio": True,
+             "onvio": "Funcionário"},
             {"nome": "tipo_valor", "rotulo": "Tipo de valor", "tipo": "select", "obrigatorio": True,
-             "opcoes": ["horas_extras", "faltas", "comissao", "adicional_noturno", "dsr", "outro"]},
-            {"nome": "valor", "rotulo": "Valor (R$)", "tipo": "number", "obrigatorio": True},
+             "opcoes": ["horas_extras", "faltas", "comissao", "adicional_noturno", "dsr", "outro"],
+             "onvio": "Tipo de Lançamento (rubrica)"},
+            {"nome": "valor", "rotulo": "Valor (R$)", "tipo": "number", "obrigatorio": True,
+             "onvio": "Valor da rubrica"},
             {"nome": "horas_por_dia", "rotulo": "Horas por dia (se horas extras)", "tipo": "number", "obrigatorio": False},
-            {"nome": "competencia", "rotulo": "Competência", "tipo": "text", "obrigatorio": True, "placeholder": "07/2026"},
+            {"nome": "competencia", "rotulo": "Competência", "tipo": "text", "obrigatorio": True,
+             "placeholder": "07/2026", "onvio": "Competência"},
         ],
         "validar": regras_clt.validar_lancamento_valores_folha,
     },
     "licenca_maternidade": {
         "titulo": "Licença maternidade",
+        "onvio_solicitacao": "Afastamento de Empregado",
         "campos": [
-            {"nome": "data_inicio", "rotulo": "Data de início", "tipo": "date", "obrigatorio": True},
+            {"nome": "empregado_nome", "rotulo": "Empregado", "tipo": "text", "obrigatorio": True,
+             "onvio": "Empregado"},
+            {"nome": "empregado_cpf", "rotulo": "CPF do empregado", "tipo": "text", "obrigatorio": False,
+             "onvio": "Empregado (localização por CPF)"},
+            {"nome": "data_inicio", "rotulo": "Data de início", "tipo": "date", "obrigatorio": True,
+             "onvio": "Data de afastamento"},
             {"nome": "empresa_cidada", "rotulo": "Empresa aderiu ao Empresa Cidadã?", "tipo": "select", "obrigatorio": False,
-             "opcoes": ["nao", "sim"]},
+             "opcoes": ["nao", "sim"], "onvio": "Descrição"},
         ],
+        "onvio_campos": [{"onvio": "Tipo do Afastamento", "valor_fixo": "Licença-maternidade"}],
         "validar": regras_clt.validar_licenca_maternidade,
     },
     "licenca_paternidade": {
         "titulo": "Licença paternidade",
+        "onvio_solicitacao": "Afastamento de Empregado",
         "campos": [
-            {"nome": "data_inicio", "rotulo": "Data de início", "tipo": "date", "obrigatorio": True},
+            {"nome": "empregado_nome", "rotulo": "Empregado", "tipo": "text", "obrigatorio": True,
+             "onvio": "Empregado"},
+            {"nome": "empregado_cpf", "rotulo": "CPF do empregado", "tipo": "text", "obrigatorio": False,
+             "onvio": "Empregado (localização por CPF)"},
+            {"nome": "data_inicio", "rotulo": "Data de início", "tipo": "date", "obrigatorio": True,
+             "onvio": "Data de afastamento"},
             {"nome": "empresa_cidada", "rotulo": "Empresa aderiu ao Empresa Cidadã?", "tipo": "select", "obrigatorio": False,
-             "opcoes": ["nao", "sim"]},
+             "opcoes": ["nao", "sim"], "onvio": "Descrição"},
         ],
+        "onvio_campos": [{"onvio": "Tipo do Afastamento", "valor_fixo": "Licença-paternidade"}],
         "validar": regras_clt.validar_licenca_paternidade,
     },
     "exame_ocupacional": {
@@ -313,7 +398,6 @@ REGISTRO_BLOCO2 = {
              "onvio": "Descrição"},
         ],
         "validar": regras_clt.validar_outros,
-        "automatizavel": False,  # solicitação livre — só atendimento manual
     },
 }
 
@@ -328,6 +412,55 @@ def catalogo_completo():
     itens = [("bloco1", tipo, schema) for tipo, schema in REGISTRO_BLOCO1.items()]
     itens += [("bloco2", tipo, schema) for tipo, schema in REGISTRO_BLOCO2.items()]
     return itens
+
+
+# ---------------------------------------------------------------------------
+# Repasse ao Onvio
+# ---------------------------------------------------------------------------
+# A visão-alvo é: cliente -> nexus (fácil, com extração e validação CLT) ->
+# solicitação criada no Onvio -> Agente de Comunicação -> Domínio já
+# pré-preenchido. Como o Onvio NÃO tem API pública para solicitações de DP
+# (ver docs/onvio_referencia.md), o repasse é feito pelo analista na interface
+# web do Onvio. Estas funções montam o "de-para" pronto para esse repasse.
+
+def onvio_destino(bloco: str, tipo: str):
+    """Nome da solicitação equivalente no Onvio, ou None se o tipo não mapeia."""
+    schema = schema_do_tipo(bloco, tipo)
+    return schema.get("onvio_solicitacao") if schema else None
+
+
+def campos_para_onvio(bloco: str, tipo: str, dados: dict):
+    """Monta o de-para para o repasse: [{rotulo_onvio, rotulo_nexus, valor}, ...].
+
+    Duas fontes, nessa ordem:
+    1. `campos` do formulário que tenham a chave "onvio" (os sem "onvio" são de
+       uso interno do nexus, como os dados de conferência CLT);
+    2. `onvio_campos` — usado por tipos com formulário DEDICADO (admissão,
+       atestado), cujos `campos` ficam vazios no registro, e para valores fixos
+       (ex.: "Tipo do Afastamento" já é determinado pelo tipo da solicitação).
+
+    Campos em branco entram na lista de propósito, para o analista enxergar o
+    que ficou faltando antes de lançar no Onvio.
+    """
+    schema = schema_do_tipo(bloco, tipo)
+    if not schema:
+        return []
+    dados = dados or {}
+    linhas = []
+
+    def _linha(rotulo_onvio, rotulo_nexus, valor):
+        linhas.append({"rotulo_onvio": rotulo_onvio, "rotulo_nexus": rotulo_nexus, "valor": valor})
+
+    for campo in schema.get("campos", []):
+        if campo.get("onvio"):
+            _linha(campo["onvio"], campo["rotulo"], dados.get(campo["nome"], ""))
+
+    for extra in schema.get("onvio_campos", []):
+        if "valor_fixo" in extra:
+            _linha(extra["onvio"], extra.get("rotulo", extra["onvio"]), extra["valor_fixo"])
+        else:
+            _linha(extra["onvio"], extra.get("rotulo", extra["onvio"]), dados.get(extra["nome"], ""))
+    return linhas
 
 
 # ---------------------------------------------------------------------------

@@ -46,6 +46,39 @@ def test_categorias_cobrem_so_tipos_existentes():
             assert tipo in conhecidos, f"categoria '{categoria}' referencia tipo inexistente '{tipo}'"
 
 
-def test_outros_nao_eh_automatizavel():
-    schema = ts.schema_do_tipo(config.BLOCO_2, "outros")
-    assert schema.get("automatizavel") is False
+def test_outros_mapeia_para_solicitacao_geral_do_onvio():
+    """'Outros' é a solicitação livre — no Onvio equivale à Solicitação Geral."""
+    assert ts.onvio_destino(config.BLOCO_2, "outros") == "Solicitação Geral"
+
+
+def test_tipos_sem_equivalente_no_onvio_nao_tem_destino():
+    """Tipos que o escritório resolve direto (CND, declaração, PPP) não repassam."""
+    for tipo in ("cnd", "declaracao", "ppp"):
+        assert ts.onvio_destino(config.BLOCO_1, tipo) is None
+
+
+def test_campos_para_onvio_usa_rotulos_do_onvio_e_valores_da_solicitacao():
+    linhas = ts.campos_para_onvio(config.BLOCO_1, "ferias",
+                                  {"empregado_nome": "José da Silva", "dias_solicitados": "30"})
+    de_para = {l["rotulo_onvio"]: l["valor"] for l in linhas}
+    assert de_para["Empregado"] == "José da Silva"
+    assert de_para["Dias de gozo"] == "30"
+    # campos só do nexus (sem chave "onvio") não vazam para o repasse
+    assert all("saldo" not in l["rotulo_onvio"].lower() for l in linhas)
+
+
+def test_campos_para_onvio_inclui_valores_fixos_do_tipo():
+    """Tipos de afastamento já determinam o 'Tipo do Afastamento' exigido no Onvio."""
+    linhas = ts.campos_para_onvio(config.BLOCO_2, "cat", {"empregado_nome": "Maria"})
+    de_para = {l["rotulo_onvio"]: l["valor"] for l in linhas}
+    assert de_para["Tipo do Afastamento"] == "Acidente de trabalho"
+
+
+def test_tipos_com_formulario_dedicado_tambem_mapeiam_para_onvio():
+    """Admissão/atestado têm campos na tela dedicada — o de-para vem de onvio_campos."""
+    linhas = ts.campos_para_onvio(config.BLOCO_2, "admissao",
+                                  {"funcionario_nome": "Ana", "cargo": "Vendedora"})
+    de_para = {l["rotulo_onvio"]: l["valor"] for l in linhas}
+    assert de_para["Nome do colaborador"] == "Ana"
+    assert de_para["Cargo"] == "Vendedora"
+    assert de_para["Tipo de colaborador"] == "Empregado"

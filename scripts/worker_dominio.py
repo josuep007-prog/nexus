@@ -1,23 +1,24 @@
 """
 scripts/worker_dominio.py
 --------------------------
-Worker que roda 24h no PC-HOST (a máquina que tem o Domínio instalado e aberto).
-Fica olhando a fila de automação e, para cada solicitação que o analista mandou
-"processar automaticamente", aciona o RPA no Domínio (integracao/dominio_rpa.py).
+⚠️ DORMENTE — mantido apenas como referência.
 
-IMPORTANTE (pré-requisitos no PC-host, iguais aos do seu DominioAutoFill):
-- Windows com o Domínio instalado, LOGADO e ABERTO na tela certa;
-- a máquina precisa ficar ligada, logada e DESBLOQUEADA;
-- enquanto o RPA digita, ninguém pode mexer no mouse/teclado da máquina;
-- processa UMA solicitação por vez (o RPA usa a tela).
+Este worker existia para rodar 24h no PC-host e acionar o RPA de tela do
+Domínio (integracao/dominio_rpa.py) para as solicitações da fila de automação.
 
-Uso:
+A arquitetura mudou (ver "Decisão de arquitetura" no CLAUDE.md e
+docs/onvio_referencia.md): o Onvio→Domínio **já entrega a tela do Domínio
+pré-preenchida** ao clicar em [Executar no sistema], então automatizar a tela
+por fora é redundante. O sistema agora leva a solicitação até o **repasse ao
+Onvio** (tela /solicitacoes/<id>/onvio) e nada mais alimenta a fila
+`na_fila_automacao` — este worker não tem o que processar.
+
+Só volta a fazer sentido se os `ROTEIRO_*` de integracao/dominio_rpa.py forem
+transcritos da tela real e a fila voltar a ser alimentada.
+
+Uso (se retomado):
     python scripts/worker_dominio.py            # intervalo padrão (10s)
     python scripts/worker_dominio.py 30         # verifica a fila a cada 30s
-
-Se o RPA falhar (integração ainda não pronta, popup inesperado, etc.), a
-solicitação NÃO é dada como concluída: o erro é registrado e ela cai para
-"atendimento manual", pro analista resolver na mão pela web.
 """
 
 import sys

@@ -72,13 +72,15 @@
             <form method="post" action="{{ url_for('decidir_validacao', solicitacao_id=sol.id) }}" class="acoes-validacao">
                 <input type="text" name="comentario" placeholder="Comentário (opcional)">
                 {% if sol.status in ("aguardando_validacao_humana", "aguardando_aprovacao_1") %}
-                {# Ponto do trabalho no Domínio: o analista escolhe automatizar ou atender na mão.
-                   Tipos não-automatizáveis (ex.: 'outros') só oferecem atendimento manual. #}
-                {% if automatizavel(sol) %}
-                <button type="submit" name="decisao" value="aprovar_auto" class="btn btn-sucesso" title="Aprovar e mandar a automação processar no Domínio">✓ Aprovar e automatizar</button>
-                <button type="submit" name="decisao" value="aprovar_manual" class="btn btn-fantasma" title="Aprovar e atender manualmente no Domínio">✋ Aprovar e atender manual</button>
+                {# Caminho pós-aprovação: tipos com equivalente no Onvio vão para o
+                   repasse (o Onvio depois pré-preenche o Domínio); os demais o
+                   escritório resolve direto. #}
+                {% if vai_para_onvio(sol) %}
+                <button type="submit" name="decisao" value="aprovar_onvio" class="btn btn-sucesso"
+                        title="Aprovar e enviar para repasse no Onvio ({{ onvio_destino(sol.bloco, sol.tipo) }})">✓ Aprovar e repassar ao Onvio</button>
+                <button type="submit" name="decisao" value="aprovar_manual" class="btn btn-fantasma" title="Aprovar e resolver direto no escritório">✋ Aprovar e atender direto</button>
                 {% else %}
-                <button type="submit" name="decisao" value="aprovar_manual" class="btn btn-sucesso" title="Aprovar e atender manualmente no Domínio">✓ Aprovar e atender manual</button>
+                <button type="submit" name="decisao" value="aprovar_manual" class="btn btn-sucesso" title="Aprovar e resolver direto no escritório (tipo sem equivalente no Onvio)">✓ Aprovar e atender</button>
                 {% endif %}
                 {% else %}
                 <button type="submit" name="decisao" value="aprovar" class="btn btn-sucesso">✓ Aprovar</button>

@@ -37,29 +37,23 @@ só há API para documentos fiscais de ERP). Isso muda o plano original:
   direto). Ver `docs/onvio_referencia.md` e `docs/dominio_referencia.md` para
   os detalhes capturados da Central de Soluções.
 
-## Interface principal (web) + painel do robô (desktop), um único núcleo
+## Interface: só web
 
-- **Web**: Flask (`web/app.py`, `web/templates/`, `web/static/`) — é a
-  **interface principal**, onde tudo acontece (cliente cria solicitações,
-  escritório valida/processa/entrega). Também é um PWA instalável no Android
-  (manifest.json + sw.js servidos na raiz). Roda em qualquer lugar.
-- **Desktop**: PyQt5 (`main.py`, `ui/painel_worker.py`) — hoje é o **Painel do
-  Robô**, com propósito TOTALMENTE diferente da web: roda na **máquina-host**
-  (a que tem o Domínio aberto) e só OPERA a automação — liga/desliga o robô,
-  mostra a fila, o log ao vivo e os erros. Não tem login nem formulários (isso
-  é papel da web); é um quadro de controle local. Visual de "console de
-  operação" (escuro, `ui/estilo.qss`), deliberadamente distinto da web. O
-  processamento em si NÃO é reimplementado: o painel roda um `QThread` que
-  chama `scripts/worker_dominio.py::rodar_uma_rodada(log=...)` — a mesma função
-  que o worker de console (`python scripts/worker_dominio.py`) usa.
-- As duas casca compartilham o mesmo banco SQLite (`data/dp_automacao.db`) e a
-  mesma lógica de negócio. **Nunca duplique lógica de negócio numa interface
-  específica** — ela sempre mora em `core/`, `modules/`, `regras/` ou
-  `database/`, e as interfaces só chamam essas funções.
-- **Onde roda o quê**: web e worker conversam pelo banco (não trocam mensagem
-  direto). O jeito mais simples é rodar a web E o painel/worker na própria
-  máquina-host (um só banco). Web na nuvem + worker no host exigiria um banco
-  de rede (Postgres) no lugar do SQLite — fica pra quando precisar.
+- **Web**: Flask (`web/app.py`, `web/templates/`, `web/static/`) — é a **única**
+  interface do sistema: cliente cria solicitações, escritório valida, repassa ao
+  Onvio e entrega. Também é um PWA instalável no Android (manifest.json + sw.js
+  servidos na raiz). Roda em qualquer lugar, inclusive na nuvem.
+- **Desktop (PyQt5) foi APOSENTADO.** Existia como "Painel do Robô" para operar
+  a automação de tela do Domínio na máquina-host. Com a decisão de arquitetura
+  acima (o Onvio já pré-preenche o Domínio), o robô perdeu a função e o painel
+  junto — `main.py` e `ui/` foram removidos. Não recrie uma interface desktop
+  sem um propósito que a web não atenda.
+- **Nunca duplique lógica de negócio na interface** — ela mora em `core/`,
+  `modules/`, `regras/` ou `database/`, e a web só chama essas funções.
+- **Dormentes** (mantidos como referência, ninguém chama): `integracao/
+  dominio_rpa.py` (motor de roteiro, `ROTEIRO_*` vazios) e
+  `scripts/worker_dominio.py` (worker da fila de automação, que não é mais
+  alimentada). Só voltam a fazer sentido se os roteiros forem transcritos.
 
 ## Autenticação e contas
 
@@ -69,7 +63,7 @@ só há API para documentos fiscais de ERP). Isso muda o plano original:
   `NIVEL_FUNCIONARIO=1/GESTOR=2/ADMIN=3`):
   - **cliente** (nível 0): empresa cliente, só cria/vê as **próprias**
     solicitações (por `cliente_cnpj`); não vê validações/alertas. (não é
-    parte da escada do escritório — o desktop/Painel do Robô não faz login.)
+    parte da escada de acesso do escritório.)
   - **funcionário** (1): operacional — recebe, valida, processa, entrega,
     alertas e obrigações.
   - **gestor** (2): funcionário **+ relatórios/produtividade + gestão de
@@ -132,37 +126,43 @@ docs/                         onvio_referencia.md e dominio_referencia.md — ca
 scripts/criar_usuario.py     CLI p/ o escritório criar contas (funcionario/cliente) — único jeito de cadastrar
 utils/                       file_manager.py (organização de pastas), logger.py
 web/                         app.py (rotas Flask) + templates/ + static/ (style.css, app.js, PWA)
-ui/                          painel_worker.py (Painel do Robô: QThread + fila + log) + estilo.qss (console escuro)
+(o desktop PyQt5 foi aposentado — ver "Interface: só web")
 ```
 
-### Processamento no Domínio: automático (worker) x manual (analista)
+### Depois da aprovação: repasse ao Onvio x atendimento direto
 
-Ao aprovar no ponto em que o trabalho no Domínio acontece (Bloco 1:
-`aguardando_validacao_humana`; Bloco 2: `aguardando_aprovacao_1`), o analista
-escolhe **Aprovar e automatizar** ou **Aprovar e atender manual** — a escolha
-grava `modo_processamento` e leva a solicitação para `na_fila_automacao` ou
-`em_atendimento_manual` (status genéricos em core/workflow.py).
+Ao aprovar (Bloco 1: `aguardando_validacao_humana`; Bloco 2:
+`aguardando_aprovacao_1`), o caminho depende de o tipo ter equivalente no Onvio
+(`onvio_solicitacao` no schema — `web/app.py::_vai_para_onvio`):
 
-Os dois caminhos convergem para a MESMA etapa de entrega na página
-`/processamento` (funcionário): revisar → anexar o resultado → "Concluir e
-entregar ao cliente" (`concluir_atendimento_manual` grava `resumo_entrega`,
-salva os anexos com `origem='escritorio'` e finaliza em `concluida`).
+- **Com equivalente** → botão "✓ Aprovar e repassar ao Onvio" → status
+  `aguardando_repasse_onvio`. O analista abre a tela de repasse
+  (`/solicitacoes/<id>/onvio`, template `repasse_onvio.html`), que mostra o
+  **de-para pronto**: cada campo já com o NOME DO CAMPO NO ONVIO e o valor,
+  com botão de copiar (e "copiar todos"). Ele lança no Onvio, informa o nº
+  (opcional) e confirma → etapa `repasse_onvio` no histórico e status
+  `aguardando_entrega`. Daí o Onvio leva ao Domínio, que abre a tela já
+  pré-preenchida em [Executar no sistema].
+- **Sem equivalente** (CND, declaração, PPP, folha sem variáveis...) → botão
+  "✓ Aprovar e atender" → `em_atendimento_manual`: o escritório resolve direto.
 
-- **Automático**: `scripts/worker_dominio.py` roda 24h **no PC-host** (a máquina
-  com o Domínio aberto), pega a fila e chama `modules/fila_processamento.py::
-  processar_automatico` (aciona o RPA de integracao/dominio_rpa.py). Se der
-  certo, a solicitação vai para `aguardando_entrega` (o escritório revisa e
-  entrega). Se o RPA falhar, registra o erro e joga para
-  `em_atendimento_manual` — nunca dá como concluído sozinho.
-- **Manual**: o analista faz na mão no Domínio e usa a seção "Em atendimento
-  manual" da mesma página para entregar.
+Os dois convergem na MESMA entrega em `/processamento`: revisar → anexar o
+resultado → "Concluir e entregar ao cliente" (`concluir_atendimento_manual`
+grava `resumo_entrega`, salva anexos com `origem='escritorio'`, finaliza em
+`concluida`).
+
+O de-para vem de `core/tipos_solicitacao.py::campos_para_onvio`, que lê duas
+fontes: a chave `"onvio"` de cada campo do formulário e, para tipos com tela
+dedicada (admissão, atestado) ou valores determinados pelo próprio tipo
+(ex.: "Tipo do Afastamento"), a lista `"onvio_campos"` (aceita `valor_fixo`).
 
 Anexos têm coluna `origem`: `cliente` (o que o cliente enviou) vs `escritorio`
 (o resultado entregue). No detalhe, o cliente vê as duas seções separadas
 ("Documentos que você enviou" x "✓ Entregue pelo escritório" + resumo).
 
-Status genéricos do processamento (core/workflow.py): `na_fila_automacao`,
-`aguardando_entrega`, `em_atendimento_manual`.
+Status genéricos (core/workflow.py): `aguardando_repasse_onvio`,
+`aguardando_entrega`, `em_atendimento_manual` — e `na_fila_automacao`, que é
+**legado** (nada mais enfileira nele; a página só o exibe se sobrar algum).
 
 **Auditoria por usuário**: cada etapa é registrada na tabela `validacoes` com
 `aprovado_por = "{nome_exibicao} ({login})"` do usuário LOGADO (não há mais
@@ -256,9 +256,7 @@ padrão de `conferir_ferias`, e registre em `_CONFERENCIAS`.
 ```bash
 pip install -r requirements.txt --break-system-packages
 python web/app.py          # web/PWA — abre em http://localhost:5000 (dev)
-python main.py             # Painel do Robô (desktop) — opera a automação no host
-python scripts/worker_dominio.py   # mesmo robô, versão console (sem janela)
-pytest tests/              # testes de workflow, regras CLT, tipos e prazos
+pytest tests/              # testes de workflow, regras CLT, tipos, prazos e repasse
 python scripts/rodar_producao.py   # produção (waitress) — defina SECRET_KEY
 ```
 
@@ -274,11 +272,8 @@ degradam graciosamente). `rodar_producao.py` lê a porta de `$PORT`; com
 estiver vazio; `scripts/seed_empregados.py` semeia a massa de teste do Dossiê
 junto). SQLite é efêmero no plano free (reinicia a cada deploy) — ok pra demo.
 
-Web e desktop usam o mesmo `data/dp_automacao.db`. O Painel do Robô e o worker
-de console fazem a MESMA coisa (rodam `rodar_uma_rodada`) — use o painel pra
-operar com janela/log visível, ou o console pra deixar rodando 24h no host. Pra
-testar do zero, apague a pasta `data/` e `logs/`. Como a web tem login, crie ao
-menos uma conta:
+O banco fica em `data/dp_automacao.db`. Pra testar do zero, apague as pastas
+`data/` e `logs/`. Como a web tem login, crie ao menos uma conta:
 `python scripts/criar_usuario.py` (ex: um `funcionario` e um `cliente`) —
 ou, logado como funcionário, use a página `/usuarios`.
 
@@ -300,13 +295,13 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 - ✅ Catálogo de solicitações na web com busca em tempo real (tolerante a acento/ordem), agrupado por categoria
 - ✅ PWA mobile (Android) instalável
 - ✅ Login com dois tipos de conta (funcionário/cliente) na web; cliente vê só o próprio CNPJ
-- ✅ Desktop reposicionado como **Painel do Robô** (ui/painel_worker.py): opera a automação no host (liga/desliga, fila, log ao vivo, erros); telas antigas que espelhavam a web foram removidas
+- ✅ Desktop (PyQt5) **aposentado**: o sistema é só web. `main.py` e `ui/` removidos junto com a automação de tela do Domínio (ver Decisão de arquitetura)
 - ✅ Tema claro/escuro (segue o sistema, com toggle salvo) em todas as páginas web
 - ✅ Reprovação devolve a solicitação ao cliente para editar/reenviar ou excluir
 - ✅ Painel de solicitações ordena: não finalizadas → concluídas não vistas pelo cliente (selo "nova entrega") → concluídas já vistas; flag `visto_pelo_cliente` marcada quando o cliente dono abre o detalhe
 - ✅ Home do painel é um gráfico de rosca (donut) por situação; a lista aparece ao clicar numa fatia/legenda
 - ✅ Página `/acompanhamento` (só cliente): grupos por prioridade — devolvidas p/ correção → novas entregas → em andamento → concluídas
-- ✅ Na aprovação, analista escolhe automatizar (fila do worker no PC-host) ou atender manual; página `/processamento` + `scripts/worker_dominio.py`
+- ✅ Após aprovar: **repasse ao Onvio** (tela `/solicitacoes/<id>/onvio` com o de-para pronto e botão de copiar) para tipos com equivalente lá; atendimento direto para os demais. Página `/processamento` reorganizada em: a repassar → revisar/entregar → atendimento direto
 - ✅ `integracao/dominio_rpa.py` reescrito do zero (sem código de outros projetos): motor de ROTEIRO por passos explícitos (`campo/texto/tecla/pausa`) — a navegação é explícita, não assume layout. Os `ROTEIRO_*` (admissão/férias/rescisão/alteração) nascem VAZIOS e a tela levanta `NotImplementedError` (cai pro manual) até serem transcritos da tela real do Domínio
 - ✅ Segurança: CSRF em todo POST (meta + injeção via app.js; login tem campo fixo), rate-limit de login (5 erros/10min → 5min bloqueado), upload com whitelist de extensões + limite de 10 MB (config.py)
 - ✅ `/conta` (todos): troca de senha, e-mail de avisos, ativar push; `/usuarios` (funcionário): criar/desativar conta, resetar senha, e-mail, empresas extras
@@ -328,7 +323,7 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 - ✅ Relatórios: barras proporcionais "por tipo"/"por cliente" + tabela de colunas alinhadas na produtividade por analista
 - ✅ Referência de Onvio/Domínio capturada da Central de Soluções (`docs/onvio_referencia.md`, `docs/dominio_referencia.md`) — achado: **sem API pública do Onvio para solicitações de DP**; RPA de tela no Domínio é redundante (ver seção "Decisão de arquitetura" no topo)
 - ✅ `integracao/dominio_rpa.py` reescrito do zero (sem código de outros projetos): motor de ROTEIRO por passos explícitos (`campo/texto/tecla/pausa`) — a navegação é explícita, não assume layout. Os `ROTEIRO_*` (admissão/férias/rescisão/alteração) nascem VAZIOS e a tela levanta `NotImplementedError` (cai pro manual) até serem transcritos da tela real do Domínio
-- ✅ Tipos `ferias`/`rescisao`/`outros` alinhados aos campos do Onvio Portal do Cliente (metadado `"onvio"` por campo, `"onvio_solicitacao"` no schema)
+- ✅ **12 tipos alinhados ao Onvio**: Cálculo de Férias, Cálculo de Rescisão, Solicitação Geral, Cadastro de Colaborador (admissão/estagiário/aprendiz), Afastamento de Empregado (atestado/INSS/CAT/licenças) e Lançamento de Rubricas — metadado `"onvio"` por campo + `"onvio_campos"` (com `valor_fixo`) para telas dedicadas
 - ✅ Dossiê do Empregado (`modules/dossie.py`, tabelas `empregados`/`empregado_historico`) + conferência CLT automática de férias (Cenário A conferido / Cenário B alerta manual, nunca bloqueia) — selo na fila de validação
 - ⬜ Integração real com Domínio (ROTEIRO_* ainda vazios), Onvio (sem API — via UI web/Playwright, não implementado), eSocial (stub)
 - ⬜ Extração de layout específico de documentos (além de CPF/PIS/datas)
@@ -336,21 +331,23 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 
 ## Próximos passos sugeridos
 
-Ordem antiga (reaproveitar PyAutoGUI de outro projeto do usuário) foi
-**substituída** pela decisão de arquitetura acima. Ordem atual, derivada da
-síntese em `docs/onvio_referencia.md`:
+O sistema já está inteiro alinhado à proposta `cliente → nexus → Onvio →
+Domínio` (repasse implementado, 12 tipos mapeados, desktop/RPA aposentados).
+Daqui pra frente, em ordem de valor:
 
-1. Transcrever os `ROTEIRO_*` de `integracao/dominio_rpa.py` a partir da tela
-   real do Domínio (admissão primeiro), ciente de que o Onvio→Domínio pode
-   tornar isso desnecessário para os tipos que já passam pelo Onvio.
-2. Alinhar os tipos restantes (admissão, afastamento/atestado, lançamento de
-   rubricas) aos campos do Onvio, mesmo padrão já aplicado a férias/rescisão/outros.
-3. Estender a conferência automática (`modules/dossie.py`) a outros tipos além
-   de férias (ex.: rescisão, com data de admissão do dossiê).
-4. Se fizer sentido depois: automação de navegador (Playwright) para criar a
-   solicitação no Onvio — exige acesso real ao Onvio para desenvolver e checar
-   os Termos de Uso antes.
-5. Refinar `modules/bloco2/extracao.py` com layouts reais de documentos.
+1. **Validar o de-para com o Onvio real.** Os nomes de campo vieram da Central
+   de Soluções (`docs/onvio_referencia.md` §2), não de uma tela aberta. Ao usar
+   pela primeira vez, conferir se batem e ajustar os rótulos `"onvio"` — é
+   barato e evita atrito no repasse.
+2. Estender a conferência automática (`modules/dossie.py`) a outros tipos além
+   de férias (ex.: rescisão, usando a data de admissão do dossiê).
+3. Refinar `modules/bloco2/extracao.py` com layouts reais de documentos — é o
+   que mais reduz digitação do cliente (o outro pilar de valor do nexus).
+4. Alinhar os tipos que faltam ao Onvio, se aparecer necessidade: "Aviso Prévio
+   de Férias" e "Aviso Prévio de Rescisão" não têm equivalente nosso ainda.
+5. Só se fizer sentido: automação de navegador (Playwright) para criar a
+   solicitação no Onvio sozinho — exige acesso real ao Onvio para desenvolver e
+   checar os Termos de Uso antes.
 6. Rotinas secundárias (feriados, monitor de CCT, consignado).
 
 ## Preferências de comunicação do usuário

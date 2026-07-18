@@ -50,7 +50,10 @@ from modules.bloco2 import admissao as bloco2_admissao
 from modules.bloco2 import generico as bloco2_generico
 from modules import fila_processamento
 from modules.rotinas import alertas as rotina_alertas
-from core.workflow import NA_FILA_AUTOMACAO, EM_ATENDIMENTO_MANUAL, AGUARDANDO_ENTREGA
+from core.workflow import (
+    NA_FILA_AUTOMACAO, AGUARDANDO_REPASSE_ONVIO, EM_ATENDIMENTO_MANUAL, AGUARDANDO_ENTREGA,
+)
+from core.tipos_solicitacao import onvio_destino, campos_para_onvio
 from utils import notificacoes, prazos
 from utils import backup as backup_util
 
@@ -77,6 +80,7 @@ ROTAS_NIVEL_MINIMO = {
     # Operacional — qualquer um da equipe do escritório
     "validacoes": NIVEL_FUNCIONARIO, "decidir_validacao": NIVEL_FUNCIONARIO,
     "processamento": NIVEL_FUNCIONARIO, "concluir_manual": NIVEL_FUNCIONARIO,
+    "repasse_onvio": NIVEL_FUNCIONARIO,
     "alertas": NIVEL_FUNCIONARIO, "resolver_alerta": NIVEL_FUNCIONARIO,
     "obrigacoes": NIVEL_FUNCIONARIO, "marcar_obrigacao_web": NIVEL_FUNCIONARIO,
     # Gerencial — gestor e admin
@@ -265,7 +269,8 @@ RÓTULOS_STATUS = {
     "aguardando_aprovacao_3": "Aguardando 3ª aprovação (envio)",
     "erro": "Erro",
     "reprovada": "Reprovada — corrigir",
-    "na_fila_automacao": "Na fila de automação",
+    "na_fila_automacao": "Na fila de automação (legado)",
+    "aguardando_repasse_onvio": "A repassar no Onvio",
     "em_atendimento_manual": "Em atendimento manual",
     "aguardando_entrega": "Processado — revisar e entregar",
 }
@@ -282,7 +287,8 @@ RÓTULOS_ETAPA = {
     "aprovacao_3": "3ª aprovação",
     "distribuicao": "Distribuição",
     "correcao_esocial": "Correção (eSocial)",
-    "processamento_automatico": "Processado pela automação",
+    "repasse_onvio": "Repassado ao Onvio",
+    "processamento_automatico": "Processado pela automação (legado)",
     "processamento_manual": "Processado / entregue",
 }
 # Etapas que representam uma DECISÃO (aprovar/reprovar) — só nessas mostramos o
@@ -300,10 +306,13 @@ def _registrar_etapa(sol, etapa, comentario=None):
     sol.validar(etapa, True, aprovado_por=_ator(g.usuario), comentario=comentario)
 
 
-def _automatizavel(sol):
-    """Se o tipo permite a opção 'Aprovar e automatizar' (ex.: 'outros' é só manual)."""
-    schema = schema_do_tipo(sol.bloco, sol.tipo)
-    return bool(schema) and schema.get("automatizavel", True)
+def _vai_para_onvio(sol):
+    """Se o tipo tem solicitação equivalente no Onvio (define o caminho pós-aprovação).
+
+    Com equivalente -> repasse ao Onvio (que depois pré-preenche o Domínio).
+    Sem equivalente (CND, declaração, PPP...) -> o escritório resolve direto.
+    """
+    return bool(onvio_destino(sol.bloco, sol.tipo))
 
 
 # Agrupamento por SITUAÇÃO para o gráfico de rosca do painel (cores didáticas).
@@ -314,7 +323,7 @@ BUCKETS_GRAFICO = [
     {"key": "processamento", "label": "Em processamento / entrega", "cor": "var(--accent-blue)",
      "status": {"aprovada_para_processamento", "processando_dominio", "aguardando_esocial", "relatorio_gerado",
                 "distribuindo", "preenchendo_sistema", "processando", "na_fila_automacao",
-                "aguardando_entrega", "em_atendimento_manual"}},
+                "aguardando_repasse_onvio", "aguardando_entrega", "em_atendimento_manual"}},
     {"key": "reprovadas", "label": "Reprovadas / erro", "cor": "var(--accent-red)",
      "status": {"reprovada", "erro", "erro_esocial"}},
     {"key": "concluidas", "label": "Concluídas", "cor": "var(--accent-green)",
@@ -337,7 +346,8 @@ def injetar_helpers():
                 rotulo_tipo=lambda t: RÓTULOS_TIPO.get(t, t),
                 rotulo_etapa=lambda e: RÓTULOS_ETAPA.get(e, e),
                 etapas_de_decisao=ETAPAS_DE_DECISAO,
-                automatizavel=_automatizavel,
+                vai_para_onvio=_vai_para_onvio,
+                onvio_destino=onvio_destino,
                 bucket_status=_bucket_status,
                 situacao_prazo=prazos.situacao_prazo,
                 rotulo_prazo=prazos.rotulo_prazo)
@@ -857,12 +867,13 @@ def validacoes():
 @app.route("/validacoes/<int:solicitacao_id>/decidir", methods=["POST"])
 def decidir_validacao(solicitacao_id):
     sol = Solicitacao.carregar(solicitacao_id)
-    # decisao: "aprovar" | "aprovar_auto" | "aprovar_manual" | "reprovar"
+    # decisao: "aprovar" | "aprovar_onvio" | "aprovar_manual" | "reprovar"
     decisao = request.form.get("decisao")
-    aprovado = decisao in ("aprovar", "aprovar_auto", "aprovar_manual")
-    modo = "manual" if decisao == "aprovar_manual" else "automatico"
-    # Tipos não-automatizáveis (ex.: 'outros') sempre vão para atendimento manual.
-    if modo == "automatico" and not _automatizavel(sol):
+    aprovado = decisao in ("aprovar", "aprovar_onvio", "aprovar_manual")
+    # Caminho pós-aprovação: repasse ao Onvio quando o tipo tem equivalente lá;
+    # senão o escritório resolve direto (CND, declaração, PPP...).
+    modo = "manual" if decisao == "aprovar_manual" else "onvio"
+    if modo == "onvio" and not _vai_para_onvio(sol):
         modo = "manual"
     # Quem aprovou/reprovou é o funcionário logado (não mais um campo livre).
     aprovado_por = _ator(g.usuario)
@@ -900,29 +911,52 @@ def decidir_validacao(solicitacao_id):
 
 
 # ---------------------------------------------------------------------------
-# Processamento no Domínio (fila da automação + atendimento manual)
+# Processamento: repasse ao Onvio + atendimento direto + entrega
 # ---------------------------------------------------------------------------
-def _status_worker():
-    """'online' | 'offline' | None (nunca rodou) — pelo heartbeat gravado pelo worker."""
-    batida = db_manager.obter_valor_sistema("worker_heartbeat")
-    if not batida:
-        return None
-    try:
-        ultima = datetime.fromisoformat(batida)
-    except ValueError:
-        return None
-    # Tolerância: 3 intervalos padrão do worker (10s) + folga → 60s.
-    return "online" if datetime.now() - ultima < timedelta(seconds=60) else "offline"
-
-
 @app.route("/processamento")
 def processamento():
-    fila_auto = sorted(Solicitacao.listar(status=NA_FILA_AUTOMACAO), key=lambda s: s.id)
+    fila_onvio = sorted(Solicitacao.listar(status=AGUARDANDO_REPASSE_ONVIO), key=lambda s: s.id)
     fila_entrega = sorted(Solicitacao.listar(status=AGUARDANDO_ENTREGA), key=lambda s: s.id)
     fila_manual = sorted(Solicitacao.listar(status=EM_ATENDIMENTO_MANUAL), key=lambda s: s.id)
-    return render_template("processamento.html", fila_auto=fila_auto,
+    # Legado: solicitações antigas presas na fila do RPA de tela (não é mais
+    # alimentada). Só aparece na página se ainda houver alguma.
+    fila_legado = sorted(Solicitacao.listar(status=NA_FILA_AUTOMACAO), key=lambda s: s.id)
+    return render_template("processamento.html", fila_onvio=fila_onvio,
                            fila_entrega=fila_entrega, fila_manual=fila_manual,
-                           worker_status=_status_worker())
+                           fila_legado=fila_legado)
+
+
+@app.route("/solicitacoes/<int:solicitacao_id>/onvio", methods=["GET", "POST"])
+def repasse_onvio(solicitacao_id):
+    """Tela de repasse: mostra os campos da solicitação já nomeados como no
+    Onvio, prontos para o analista lançar lá (o Onvio não tem API de DP —
+    ver docs/onvio_referencia.md). Ao confirmar, segue para a entrega."""
+    try:
+        sol = Solicitacao.carregar(solicitacao_id)
+    except ValueError:
+        abort(404)
+    destino = onvio_destino(sol.bloco, sol.tipo)
+    if not destino:
+        flash("Este tipo não tem solicitação equivalente no Onvio.", "aviso")
+        return redirect(url_for("processamento"))
+
+    if request.method == "POST":
+        numero = request.form.get("numero_onvio", "").strip()
+        sol.atualizar_dados({"repassado_onvio": True, "numero_onvio": numero or None})
+        _registrar_etapa(sol, "repasse_onvio",
+                         comentario=f"Lançado no Onvio como '{destino}'" +
+                                    (f" (nº {numero})" if numero else ""))
+        sol.avancar(AGUARDANDO_ENTREGA)
+        flash(f"Solicitação #{sol.id} marcada como repassada ao Onvio. "
+              f"Agora é revisar e entregar ao cliente.", "sucesso")
+        return redirect(url_for("processamento"))
+
+    # funcionario_nome é coluna da solicitação (não fica em dados) — mesclar para
+    # que os tipos com formulário dedicado (admissão, atestado) mapeiem o empregado.
+    dados = {**sol.dados, "funcionario_nome": sol._row.get("funcionario_nome") or ""}
+    return render_template("repasse_onvio.html", sol=sol, destino=destino,
+                           linhas=campos_para_onvio(sol.bloco, sol.tipo, dados),
+                           anexos=[a for a in sol.anexos() if a.get("origem") != "escritorio"])
 
 
 @app.route("/solicitacoes/<int:solicitacao_id>/concluir-manual", methods=["POST"])

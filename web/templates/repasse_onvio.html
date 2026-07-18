@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block titulo %}Repasse ao Onvio · #{{ sol.id }}{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+    <div>
+        <div class="eyebrow">Repasse</div>
+        <h1>Lançar no Onvio — #{{ sol.id }}</h1>
+        <p class="descricao">Os dados abaixo já estão com os nomes dos campos do Onvio.
+            Abra o Onvio, crie a solicitação <strong>{{ destino }}</strong> e cole cada valor.
+            Depois volte aqui e confirme — a solicitação segue para a entrega ao cliente.</p>
+    </div>
+    <a href="{{ url_for('processamento') }}" class="btn btn-fantasma">← Voltar</a>
+</div>
+
+<div class="caixa-aviso" style="margin-bottom:18px;">
+    Depois de salvar no Onvio, o próprio Onvio leva a solicitação ao Domínio: lá o analista
+    clica em <strong>[Executar no sistema]</strong> e a tela abre <strong>já preenchida</strong> —
+    é só conferir e gravar.
+</div>
+
+<div class="grade-detalhe">
+    <div>
+        <div class="bloco-info">
+            <h4>Solicitação no Onvio: {{ destino }}</h4>
+            <div class="tabela-repasse">
+                <div class="rep-linha rep-cabecalho">
+                    <span>Campo no Onvio</span><span>Valor</span><span></span>
+                </div>
+                {% for linha in linhas %}
+                <div class="rep-linha">
+                    <span class="rep-campo">{{ linha.rotulo_onvio }}</span>
+                    <span class="rep-valor {{ 'vazio' if not linha.valor }}"
+                          data-valor="{{ linha.valor }}">{{ linha.valor or "— em branco —" }}</span>
+                    <span>
+                        {% if linha.valor %}
+                        <button type="button" class="btn btn-fantasma btn-mini botao-copiar"
+                                data-copiar="{{ linha.valor }}">Copiar</button>
+                        {% endif %}
+                    </span>
+                </div>
+                {% else %}
+                <div class="vazio">Este tipo não tem campos mapeados para o Onvio.</div>
+                {% endfor %}
+            </div>
+            {% if linhas %}
+            <div style="margin-top:14px;">
+                <button type="button" class="btn btn-fantasma" id="copiar-tudo">⧉ Copiar todos os campos</button>
+                <span id="aviso-copia" class="dica-cabecalho" style="margin-left:10px;"></span>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if anexos %}
+        <div class="bloco-info">
+            <h4>Anexos do cliente — reenviar no Onvio</h4>
+            {% for anexo in anexos %}
+            <div class="anexo-item">
+                <span>{{ anexo.caminho_arquivo.replace('\\', '/').split('/')[-1] }}</span>
+                <a class="btn btn-fantasma btn-mini" href="{{ url_for('anexo_arquivo', anexo_id=anexo.id) }}">Baixar</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="bloco-info">
+            <h4>Confirmar repasse</h4>
+            <p class="dica-cabecalho" style="margin-bottom:12px;">
+                Marque quando já tiver criado a solicitação no Onvio.
+            </p>
+            <form method="post">
+                <div class="campo">
+                    <label for="numero_onvio">Nº da solicitação no Onvio <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+                    <input type="text" id="numero_onvio" name="numero_onvio" placeholder="ex: 4512">
+                </div>
+                <button type="submit" class="btn btn-sucesso" style="width:100%;">✓ Repassei ao Onvio</button>
+            </form>
+        </div>
+
+        <div class="bloco-info">
+            <h4>Dados da solicitação</h4>
+            <div class="linha-dado"><span class="chave">Cliente</span><span class="valor">{{ sol._row.cliente_nome or "—" }}</span></div>
+            <div class="linha-dado"><span class="chave">Tipo</span><span class="valor">{{ rotulo_tipo(sol.tipo) }}</span></div>
+            <div class="linha-dado"><span class="chave">Situação</span><span class="valor">{{ m.carimbo_status(sol.status) }}</span></div>
+            <div class="linha-dado"><span class="chave">Detalhes</span><span class="valor"><a href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">abrir</a></span></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const aviso = document.getElementById("aviso-copia");
+    function avisar(texto) {
+        if (!aviso) return;
+        aviso.textContent = texto;
+        setTimeout(() => { aviso.textContent = ""; }, 2000);
+    }
+    document.querySelectorAll(".botao-copiar").forEach((botao) => {
+        botao.addEventListener("click", () => {
+            navigator.clipboard.writeText(botao.dataset.copiar).then(() => {
+                const original = botao.textContent;
+                botao.textContent = "✓ Copiado";
+                setTimeout(() => { botao.textContent = original; }, 1500);
+            });
+        });
+    });
+    const tudo = document.getElementById("copiar-tudo");
+    if (tudo) {
+        tudo.addEventListener("click", () => {
+            const linhas = [...document.querySelectorAll(".rep-linha:not(.rep-cabecalho)")].map((l) => {
+                const campo = l.querySelector(".rep-campo").textContent.trim();
+                const valor = l.querySelector(".rep-valor").dataset.valor || "";
+                return campo + ": " + valor;
+            });
+            navigator.clipboard.writeText(linhas.join("\n")).then(() => avisar("Todos os campos copiados."));
+        });
+    }
+})();
+</script>
+{% endblock %}

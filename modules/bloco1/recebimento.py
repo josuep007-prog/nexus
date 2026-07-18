@@ -102,18 +102,20 @@ def registrar_ajuste_cliente(solicitacao: Solicitacao, aceitou_sugestao: bool, d
 
 
 def validar_humanamente(solicitacao: Solicitacao, aprovado: bool, aprovado_por: str,
-                        comentario=None, modo="automatico"):
+                        comentario=None, modo="onvio"):
     """
     Validação humana obrigatória — TODA solicitação passa por aqui antes de
     ser processada, esteja ela 100% correta ou com inconsistências.
 
-    Ao aprovar, o analista escolhe COMO o trabalho no Domínio será feito:
-    - modo="automatico" -> vai pra fila do worker (PC-host processa sozinho)
-    - modo="manual"     -> o analista vai atender na mão no Domínio
+    Ao aprovar, a solicitação segue para o trabalho do escritório:
+    - modo="onvio"  -> repasse ao Onvio (o analista lança lá, com o de-para
+      pronto na tela de repasse; o Onvio pré-preenche o Domínio depois)
+    - modo="manual" -> tipos sem equivalente no Onvio (CND, declaração, PPP...),
+      resolvidos direto pelo escritório
     """
-    from core.workflow import NA_FILA_AUTOMACAO, EM_ATENDIMENTO_MANUAL
+    from core.workflow import AGUARDANDO_REPASSE_ONVIO, EM_ATENDIMENTO_MANUAL
     solicitacao.validar("triagem", aprovado, aprovado_por=aprovado_por, comentario=comentario)
     if aprovado:
         solicitacao.atualizar_dados({"modo_processamento": modo})
-        solicitacao.avancar(NA_FILA_AUTOMACAO if modo == "automatico" else EM_ATENDIMENTO_MANUAL)
+        solicitacao.avancar(AGUARDANDO_REPASSE_ONVIO if modo == "onvio" else EM_ATENDIMENTO_MANUAL)
     return aprovado

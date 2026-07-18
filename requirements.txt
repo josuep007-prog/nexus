@@ -1,7 +1,5 @@
-# Interface gráfica
-PyQt5>=5.15
-
-# Versão web (testes)
+# Aplicação web (é a única interface do sistema — o painel desktop PyQt5 foi
+# aposentado junto com a automação de tela do Domínio; ver CLAUDE.md)
 Flask>=3.0
 
 # Extração de dados (Bloco 2 - admissões, folha com variáveis)
@@ -9,7 +7,9 @@ pdfplumber>=0.10
 pytesseract>=0.3.10
 Pillow>=10.0
 
-# Automação do Domínio (RPA)
+# Automação de tela do Domínio (RPA) — DORMENTE: o Onvio já pré-preenche o
+# Domínio, então este caminho não é mais usado (integracao/dominio_rpa.py e
+# scripts/worker_dominio.py ficam como referência). Só instale se for retomar.
 pyautogui>=0.9.54
 keyboard>=0.13.5
 

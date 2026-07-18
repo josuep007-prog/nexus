@@ -84,18 +84,18 @@ def extrair_e_validar(solicitacao: Solicitacao):
 
 
 def aprovacao_1_revisar_dados(solicitacao: Solicitacao, aprovado: bool, aprovado_por: str,
-                              comentario=None, modo="automatico"):
-    """1ª aprovação: funcionário revisa os dados extraídos e autoriza o preenchimento no sistema.
+                              comentario=None, modo="onvio"):
+    """1ª aprovação: funcionário revisa os dados extraídos e libera o trabalho.
 
-    Ao aprovar, escolhe se o preenchimento no Domínio vai ser feito pela
-    automação (modo="automatico", entra na fila do worker) ou na mão
-    (modo="manual", atendimento manual do analista).
+    Ao aprovar, escolhe o caminho: modo="onvio" (repassar ao Onvio, que depois
+    pré-preenche o Domínio) ou modo="manual" (tipos sem equivalente no Onvio,
+    resolvidos direto pelo escritório).
     """
-    from core.workflow import NA_FILA_AUTOMACAO, EM_ATENDIMENTO_MANUAL
+    from core.workflow import AGUARDANDO_REPASSE_ONVIO, EM_ATENDIMENTO_MANUAL
     solicitacao.validar("aprovacao_1", aprovado, aprovado_por=aprovado_por, comentario=comentario)
     if aprovado:
         solicitacao.atualizar_dados({"modo_processamento": modo})
-        solicitacao.avancar(NA_FILA_AUTOMACAO if modo == "automatico" else EM_ATENDIMENTO_MANUAL)
+        solicitacao.avancar(AGUARDANDO_REPASSE_ONVIO if modo == "onvio" else EM_ATENDIMENTO_MANUAL)
     return aprovado
 
 

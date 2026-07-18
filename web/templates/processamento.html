@@ -53,25 +53,41 @@
 {% block conteudo %}
 <div class="topo-pagina">
     <div>
-        <div class="eyebrow">Domínio</div>
+        <div class="eyebrow">Escritório</div>
         <h1>Processamento</h1>
-        <p class="descricao">O que foi aprovado e está indo pro Domínio: a fila da automação (o PC-host processa sozinho), o que a automação já processou e espera a entrega, e o que ficou para atendimento manual.</p>
+        <p class="descricao">O que foi aprovado e está em trabalho: o que falta lançar no Onvio (de onde o Domínio se pré-preenche), o que já foi feito e espera a entrega, e o que o escritório resolve direto.</p>
     </div>
-    {# Heartbeat do worker no PC-host (gravado a cada rodada na tabela sistema) #}
-    {% if worker_status == 'online' %}
-    <span class="selo-worker online">● Worker online</span>
-    {% elif worker_status == 'offline' %}
-    <span class="selo-worker offline" title="O worker parou de dar sinal — confira o PC-host">● Worker offline</span>
-    {% else %}
-    <span class="selo-worker nunca" title="O worker nunca rodou neste banco">○ Worker nunca iniciado</span>
-    {% endif %}
 </div>
 
-<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">▶ Fila de automação</h3>
-{% if fila_auto %}
+<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">→ A repassar no Onvio</h3>
+{% if fila_onvio %}
 <div class="painel" style="margin-bottom:26px;">
     <div class="lista-solicitacoes">
-        {% for sol in fila_auto %}
+        {% for sol in fila_onvio %}
+        <a class="item-solicitacao" style="grid-template-columns: 48px 1fr 1fr 210px;" href="{{ url_for('repasse_onvio', solicitacao_id=sol.id) }}">
+            <div class="id mono">#{{ sol.id }}</div>
+            <div class="tipo">{{ rotulo_tipo(sol.tipo) }}
+                <span class="dica-cabecalho">→ {{ onvio_destino(sol.bloco, sol.tipo) }}</span>
+            </div>
+            <div class="cliente">{{ sol._row.cliente_nome or "—" }}</div>
+            <div>{{ m.carimbo_status(sol.status) }}</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="painel" style="margin-bottom:26px;"><div class="vazio">Nada esperando repasse ao Onvio.</div></div>
+{% endif %}
+
+{% if fila_legado %}
+<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">⚠ Fila antiga da automação de tela (legado)</h3>
+<div class="painel" style="margin-bottom:26px;">
+    <div class="caixa-aviso" style="margin:14px 20px;">
+        Estas ficaram da automação de tela do Domínio, que foi descontinuada
+        (o Onvio já pré-preenche o Domínio). Atenda-as pelo caminho normal.
+    </div>
+    <div class="lista-solicitacoes">
+        {% for sol in fila_legado %}
         <a class="item-solicitacao" href="{{ url_for('solicitacao_detalhe', solicitacao_id=sol.id) }}">
             <div class="id mono">#{{ sol.id }}</div>
             <div class="tipo">{{ rotulo_tipo(sol.tipo) }}</div>
@@ -81,22 +97,20 @@
         {% endfor %}
     </div>
 </div>
-{% else %}
-<div class="painel" style="margin-bottom:26px;"><div class="vazio">Nada na fila da automação.</div></div>
 {% endif %}
 
-<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">✓ Processado pela automação — revisar e entregar</h3>
+<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">✓ Repassado / feito — revisar e entregar</h3>
 {% if fila_entrega %}
 <div class="fila-validacao" style="margin-bottom:26px;">
     {% for sol in fila_entrega %}
-    {{ card_entrega(sol, "A automação já preencheu no Domínio. Revise, anexe o comprovante/documento gerado e entregue ao cliente.") }}
+    {{ card_entrega(sol, "Já repassado ao Onvio (que pré-preenche o Domínio). Revise, anexe o comprovante/documento gerado e entregue ao cliente.") }}
     {% endfor %}
 </div>
 {% else %}
 <div class="painel" style="margin-bottom:26px;"><div class="vazio">Nada aguardando entrega.</div></div>
 {% endif %}
 
-<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">✋ Em atendimento manual</h3>
+<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin:0 0 10px;">✋ Atendimento direto do escritório (sem equivalente no Onvio)</h3>
 {% if fila_manual %}
 <div class="fila-validacao">
     {% for sol in fila_manual %}

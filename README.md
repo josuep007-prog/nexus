@@ -1,36 +1,29 @@
 # Automação DP — Esqueleto do Sistema
 
-Esqueleto modular baseado no *Mapeamento de Processos - DP*. Cobre a arquitetura
-inteira (Bloco 1, Bloco 2, rotinas secundárias e integrações), com o "motor"
-do sistema (banco de dados, workflow, regras CLT/CCT) já funcionando, e duas
-interfaces: **desktop (PyQt5)** e **web (Flask, pra testes)**.
+Sistema modular baseado no *Mapeamento de Processos - DP*, com o "motor"
+(banco de dados, workflow, regras CLT/CCT) e a interface **web (Flask)** —
+que é também um PWA instalável no celular.
+
+O fluxo-alvo é: **cliente → nexus → Onvio → Domínio**. O cliente abre a
+solicitação aqui (pouca digitação, com extração e conferência CLT automática);
+o escritório valida e **repassa ao Onvio** numa tela que já mostra os campos
+com os nomes do Onvio; o Onvio leva ao Domínio, que abre a tela pré-preenchida.
+Ver `docs/onvio_referencia.md` para a decisão de arquitetura por trás disso.
 
 ## Como rodar
 
 ```bash
 cd dp_automacao
 pip install -r requirements.txt --break-system-packages   # ou sem a flag, se estiver em venv
-```
-
-### Versão desktop
-```bash
-python main.py
-```
-
-### Versão web
-```bash
 python web/app.py
 ```
-Depois abra **http://localhost:5000** no navegador. As três versões (desktop,
-web, mobile) usam o mesmo banco de dados (`data/dp_automacao.db`) — o que
-você cria numa aparece nas outras.
+Depois abra **http://localhost:5000** no navegador.
 
 ### Versão mobile (Android)
 
 A versão web é também um **PWA (Progressive Web App)** — não é um app nativo
-separado, é a mesma versão web instalada como app no celular. Isso significa
-zero código duplicado: qualquer solicitação, regra CLT ou tela nova que você
-adicionar já funciona automaticamente nas três versões (desktop, web e mobile).
+separado, é a mesma versão web instalada como app no celular. Zero código
+duplicado: qualquer solicitação, regra CLT ou tela nova já funciona nos dois.
 
 **Pra instalar no Android:**
 1. Rode `python web/app.py` no computador (ele precisa estar ligado e na
@@ -128,10 +121,9 @@ específico de cada documento) — é o próximo ponto natural de evolução.
   mínimos de admissão.
 - **Módulo de atestados** (`modules/bloco2/atestados.py`): recebimento de
   arquivo + criação de solicitação, ponta a ponta.
-- **Interface desktop PyQt5** (`ui/`): 3 abas — Solicitações, Validações
-  (fila de aprovação humana), Alertas.
-- **Interface web Flask** (`web/`): as mesmas 3 telas + formulário de novo
-  atestado com upload de arquivo, com identidade visual própria.
+- **Interface web Flask** (`web/`, também PWA): catálogo de solicitações,
+  fila de validação, repasse ao Onvio, entrega ao cliente, relatórios,
+  obrigações e gestão de contas (4 papéis de acesso).
 - **Organização de arquivos** (`utils/file_manager.py`): estrutura de pastas
   cliente/tipo/competência, já usada pelo módulo de distribuição do Bloco 1.
 
@@ -143,8 +135,8 @@ anterior). São os pontos onde entra integração externa de verdade:
 
 | Módulo | O que falta | Onde plugar o que você já tem |
 |---|---|---|
-| `integracao/dominio_rpa.py` | Automação de tela (PyAutoGUI) | Seu pacote `dominio_banco_agencia` e o projeto de admissões PyQt5+Tesseract+pdfplumber |
-| `integracao/onvio_api.py` | Chamadas à API/portal do Onvio | Seus scripts Batch com cURL/PowerShell |
+| `integracao/dominio_rpa.py` | **DORMENTE** — o Onvio já pré-preenche o Domínio; roteiros vazios | Só retomar se for transcrever a tela real |
+| `integracao/onvio_api.py` | Sem API pública de DP no Onvio; o repasse é manual (tela de repasse) ou, no futuro, Playwright na UI web | Ver `docs/onvio_referencia.md` |
 | `integracao/esocial_monitor.py` | Consulta de status de evento no eSocial | — |
 | `modules/rotinas/monitor_cct.py` | Scraping do Mediador (MTE) | — |
 | `modules/rotinas/feriados.py` | Consulta de feriados nacionais/municipais | — |
@@ -167,7 +159,6 @@ anterior). São os pontos onde entra integração externa de verdade:
 
 ```
 dp_automacao/
-├── main.py                    # ponto de entrada (desktop)
 ├── config.py                   # caminhos e constantes
 ├── database/                   # SQLite (db_manager.py)
 ├── core/                       # workflow (máquina de estados) + Solicitacao
@@ -178,7 +169,7 @@ dp_automacao/
 │   └── rotinas/                  # feriados, CCT, consignado, alertas, compliance
 ├── integracao/                  # Domínio (RPA), Onvio (API), eSocial
 ├── utils/                       # arquivos, logging
-├── ui/                          # janela principal + abas PyQt5 + estilo.qss
-└── web/                         # versão web Flask (app.py, templates/, static/)
+├── docs/                        # referências de Onvio e Domínio (Central de Soluções)
+└── web/                         # aplicação web Flask/PWA (app.py, templates/, static/)
 ```
 

@@ -86,14 +86,22 @@ FLUXO_BLOCO_2 = {
 ERRO = "erro"  # status genérico de erro, pode ser aplicado em qualquer bloco
 REPROVADA = "reprovada"  # genérico: analista reprovou; volta pro cliente editar/excluir
 
-# Após aprovar, o analista decide COMO o trabalho no Domínio vai ser feito:
-NA_FILA_AUTOMACAO = "na_fila_automacao"        # o worker do PC-host vai processar sozinho
-EM_ATENDIMENTO_MANUAL = "em_atendimento_manual"  # o analista vai fazer na mão no Domínio
-AGUARDANDO_ENTREGA = "aguardando_entrega"      # automação processou; escritório revisa, anexa resultado e entrega
+# Depois de aprovada, a solicitação segue para o trabalho do escritório.
+# A visão-alvo (docs/onvio_referencia.md) é: nexus -> Onvio -> Domínio. Como o
+# Onvio não tem API pública para solicitações de DP, o repasse é feito pelo
+# analista na interface do Onvio, com o "de-para" pronto na tela de repasse.
+AGUARDANDO_REPASSE_ONVIO = "aguardando_repasse_onvio"  # aprovada; analista vai lançar no Onvio
+EM_ATENDIMENTO_MANUAL = "em_atendimento_manual"  # o analista resolve por fora (tipos sem equivalente no Onvio)
+AGUARDANDO_ENTREGA = "aguardando_entrega"      # trabalho feito; escritório revisa, anexa resultado e entrega
+
+# Legado: fila do RPA de tela no Domínio. Mantido para não órfãos solicitações
+# antigas — nada mais enfileira aqui (ver "Decisão de arquitetura" no CLAUDE.md).
+NA_FILA_AUTOMACAO = "na_fila_automacao"
 
 # Estados "genéricos" que podem ser alcançados/deixados de qualquer ponto do
 # fluxo (o código que chama controla o destino certo).
-_ESTADOS_GENERICOS = {ERRO, REPROVADA, NA_FILA_AUTOMACAO, EM_ATENDIMENTO_MANUAL, AGUARDANDO_ENTREGA}
+_ESTADOS_GENERICOS = {ERRO, REPROVADA, NA_FILA_AUTOMACAO, AGUARDANDO_REPASSE_ONVIO,
+                      EM_ATENDIMENTO_MANUAL, AGUARDANDO_ENTREGA}
 
 
 def fluxo_para_bloco(bloco):

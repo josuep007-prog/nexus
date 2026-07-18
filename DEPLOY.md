@@ -7,9 +7,9 @@ qualquer computador ou celular — **sem depender do seu PC estar ligado**.
 Usaremos o **Render** (render.com), que tem plano **gratuito** e lê sozinho a
 "planta" que já está no repositório ([render.yaml](render.yaml)).
 
-> A automação do Domínio (Painel do Robô) **não** vai pra nuvem — ela precisa
-> da máquina com o Domínio aberto. Na demo, quando algo seria automatizado, o
-> sistema apenas mostra "em atendimento manual". Todo o resto funciona.
+> O sistema é só web — não há nada pra instalar na máquina. Depois de aprovar,
+> a solicitação vai para o **repasse ao Onvio** (tela com o de-para pronto) ou
+> para atendimento direto do escritório, conforme o tipo.
 
 ---
 
@@ -33,12 +33,10 @@ Pronto. Esse link é fixo — mande pra quem quiser, funciona em qualquer lugar.
 
 ## Qual branch o Render publica
 
-O deploy está fixado na branch de trabalho **`claude/great-darwin-0110uv`**
-(campo `branch:` no `render.yaml`) — é onde está todo o desenvolvimento. Se o
-serviço no Render já tiver sido criado apontando para outra branch (ex.: `main`),
-ajuste em **Settings → Branch** para `claude/great-darwin-0110uv` e clique em
-**Manual Deploy → Deploy latest commit**. Ao mesclar tudo na `main` no futuro,
-troque o `branch:` do `render.yaml` (ou remova a linha) para voltar a seguir a `main`.
+O deploy segue a branch **`main`** (campo `branch:` no `render.yaml`), que é
+onde fica o desenvolvimento. Se o serviço no Render tiver sido criado apontando
+para outra branch, ajuste em **Settings → Branch** para `main` e clique em
+**Manual Deploy → Deploy latest commit**.
 
 ---
 
