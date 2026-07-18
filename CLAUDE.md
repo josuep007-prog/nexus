@@ -259,9 +259,22 @@ padrão de `conferir_ferias`, e registre em `_CONFERENCIAS`.
   integração "no chute" pode gerar código incompatível com o ambiente real dele.
 - **Toda solicitação passa por validação humana obrigatória** antes de
   qualquer processamento (`core/workflow.py` não permite pular essa etapa).
-- Extração de documentos (`modules/bloco2/extracao.py`) hoje é regex básico
-  (CPF, PIS, datas soltas) — qualquer melhoria de layout específico precisa
-  de documentos reais de exemplo do usuário, não invente formato.
+- Extração de documentos (`modules/bloco2/extracao.py`): busca **por RÓTULO**
+  ("Nome: X", "Cargo: Y"), com sinônimos por campo em `_ROTULOS` — padrão
+  universal de ficha de registro/admissão, que funciona em qualquer layout.
+  **Nunca decore a posição de um campo num modelo específico** (quebra no
+  primeiro documento diferente) e não invente formato: para calibrar com
+  documento real use `python scripts/testar_extracao.py <arquivo>`, veja o que
+  faltou e acrescente o rótulo que aquele documento usa.
+  Três regras que o módulo já garante e devem ser mantidas:
+  1. valor passa por normalização (data→ISO, R$→decimal) e, quando há regra
+     (CPF/PIS), por dígito verificador — **dado ruim vira pendência, não
+     entra como se fosse bom**;
+  2. o retorno traz `_diagnostico` (achados/faltando/recusados/falha_leitura),
+     consumido por `recebimento_anexo.extrair_e_validar` para virar pendência
+     explícita — inclusive "PDF sem camada de texto" (escaneado), que antes
+     falhava em silêncio;
+  3. `_diagnostico` é removido antes de virar dado da solicitação.
 
 ## Como testar
 
@@ -303,7 +316,8 @@ standalone (login) incluem o campo na mão; chamadas fetch mandam o header
 
 - ✅ Banco de dados, workflow, 25 tipos de solicitação com formulário + regra de validação (inclui "Outros" livre e, na folha, adiantamento e RPA)
 - ✅ Módulo de atestados (só recebimento de PDF/PNG)
-- ✅ Módulo de admissão (múltiplos anexos + extração básica por regex + validação CLT completa)
+- ✅ Módulo de admissão (múltiplos anexos + extração por rótulo + validação CLT completa)
+- ✅ **Extração de documentos por rótulo** (`extracao.py`): acha os 14 campos mínimos da admissão numa ficha de registro, normaliza (data→ISO, R$→decimal), valida dígito de CPF/PIS (dado ruim vira pendência) e reporta o motivo quando não lê (PDF escaneado, OCR ausente). Calibrar com `scripts/testar_extracao.py`
 - ✅ Catálogo de solicitações na web com busca em tempo real (tolerante a acento/ordem), agrupado por categoria
 - ✅ PWA mobile (Android) instalável
 - ✅ Login com dois tipos de conta (funcionário/cliente) na web; cliente vê só o próprio CNPJ
@@ -354,8 +368,11 @@ Daqui pra frente, em ordem de valor:
    barato e evita atrito no repasse.
 2. Estender a conferência automática (`modules/dossie.py`) a outros tipos além
    de férias (ex.: rescisão, usando a data de admissão do dossiê).
-3. Refinar `modules/bloco2/extracao.py` com layouts reais de documentos — é o
-   que mais reduz digitação do cliente (o outro pilar de valor do nexus).
+3. **Calibrar a extração com documentos reais** do escritório (rodar
+   `scripts/testar_extracao.py` e completar `_ROTULOS` com os rótulos que
+   aparecerem). O motor já funciona; falta ajustá-lo ao vocabulário real.
+   Pendência conhecida: PDF escaneado (sem camada de texto) não é lido — exigiria
+   pdf2image + poppler; hoje o sistema avisa em vez de falhar calado.
 4. Alinhar os tipos que faltam ao Onvio, se aparecer necessidade: "Aviso Prévio
    de Férias" e "Aviso Prévio de Rescisão" não têm equivalente nosso ainda.
 5. Só se fizer sentido: automação de navegador (Playwright) para criar a

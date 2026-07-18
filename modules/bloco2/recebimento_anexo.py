@@ -53,8 +53,21 @@ def extrair_e_validar(solicitacao: Solicitacao):
     for anexo in solicitacao.anexos():
         try:
             dados = extracao.extrair_dados(anexo["caminho_arquivo"], solicitacao.tipo)
-            db_manager.salvar_dados_extraidos(anexo["id"], dados)
+            db_manager.salvar_dados_extraidos(anexo["id"], dados)  # guarda com diagnóstico
+            diagnostico = dados.pop("_diagnostico", {})
+            # Só o que a extração conseguiu validar vira dado da solicitação;
+            # o resto vira PENDÊNCIA explícita para o analista conferir na mão.
             dados_extraidos_total.update(dados)
+            if diagnostico.get("falha_leitura") == extracao.PDF_SEM_TEXTO:
+                erros_totais.append(
+                    f"Anexo {anexo['id']}: PDF sem camada de texto (documento escaneado) — "
+                    "nada pôde ser extraído automaticamente; confira na mão.")
+            elif diagnostico.get("falha_leitura") == extracao.SEM_BIBLIOTECA:
+                erros_totais.append(
+                    f"Anexo {anexo['id']}: leitura automática indisponível neste ambiente "
+                    "(OCR/PDF não instalados) — confira na mão.")
+            for campo, motivo in (diagnostico.get("recusados") or {}).items():
+                erros_totais.append(f"'{campo}' encontrado mas não aceito: {motivo}.")
         except NotImplementedError:
             erros_totais.append(f"Extração ainda não implementada para tipo '{solicitacao.tipo}'.")
         except Exception as exc:  # noqa: BLE001
